@@ -1,8 +1,6 @@
 local player = game.Players.LocalPlayer
 local markPosition = nil
 local lastPosition = nil
-local invisible = false
-local fastInteract = false
 
 -- auto mark on spawn (13 studs forward)
 local function setSpawnMark(character)
@@ -11,36 +9,6 @@ local function setSpawnMark(character)
     markPosition = hrp.Position + (lookDir * 13)
 end
 
--- invisibility
-local function setInvisible(state)
-    local char = player.Character
-    if not char then return end
-
-    for _, v in ipairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then
-            if v.Name ~= "HumanoidRootPart" then
-                v.Transparency = state and 1 or 0
-            end
-            v.CanCollide = not state
-        elseif v:IsA("Decal") then
-            v.Transparency = state and 1 or 0
-        end
-    end
-end
-
--- fast interact logic
-local function applyFastInteract(state)
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") then
-            if state then
-                obj.HoldDuration = 0
-                obj.MaxActivationDistance = 50
-            end
-        end
-    end
-end
-
--- character handling
 if player.Character then
     setSpawnMark(player.Character)
 end
@@ -48,107 +16,108 @@ end
 player.CharacterAdded:Connect(function(char)
     task.wait(0.5)
     setSpawnMark(char)
-
-    if invisible then
-        task.wait(0.3)
-        setInvisible(true)
-    end
 end)
 
--- auto apply fast interact to new prompts
-workspace.DescendantAdded:Connect(function(obj)
-    if fastInteract and obj:IsA("ProximityPrompt") then
-        obj.HoldDuration = 0
-        obj.MaxActivationDistance = 50
-    end
-end)
-
--- GUI
-local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NeroInstantStealGUI"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local main = Instance.new("Frame", screenGui)
-main.Size = UDim2.new(0, 320, 0, 420)
-main.Position = UDim2.new(0.5, 0, 0.5, 0)
-main.AnchorPoint = Vector2.new(0.5, 0.5)
-main.BackgroundColor3 = Color3.fromRGB(40,40,40)
-main.Active = true
-main.Draggable = true
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,15)
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 270)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
 
-local grad = Instance.new("UIGradient", main)
-grad.Color = ColorSequence.new(Color3.fromRGB(60,60,60), Color3.fromRGB(20,20,20))
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 15)
 
-local function makeButton(text, y, color)
-    local b = Instance.new("TextButton", main)
-    b.Size = UDim2.new(0, 220, 0, 50)
-    b.Position = UDim2.new(0.5, -110, 0, y)
-    b.Text = text
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 18
-    b.TextColor3 = Color3.new(1,1,1)
-    b.BackgroundColor3 = color
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
-    return b
-end
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new(
+    Color3.fromRGB(60,60,60),
+    Color3.fromRGB(25,25,25)
+)
+gradient.Parent = mainFrame
 
--- TITLE
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Position = UDim2.new(0, 0, 0, 10)
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -20, 0, 45)
+title.Position = UDim2.new(0, 10, 0, 10)
+title.BackgroundTransparency = 1
 title.Text = "NERO INSTANT STEAL"
 title.Font = Enum.Font.GothamBold
-title.TextScaled = true
-title.BackgroundTransparency = 1
+title.TextSize = 22
 title.TextColor3 = Color3.new(1,1,1)
+title.TextScaled = true
+title.Parent = mainFrame
 
--- BUTTONS
-local instantBtn = makeButton("INSTANT STEAL", 70, Color3.fromRGB(0,255,128))
-local flashBtn   = makeButton("FLASH STEP", 135, Color3.fromRGB(255,85,0))
-local invisBtn   = makeButton("INVISIBLE : OFF", 200, Color3.fromRGB(120,120,120))
-local fastBtn    = makeButton("FAST INTERACT : OFF", 265, Color3.fromRGB(120,120,120))
-
--- CREATOR
-local creator = Instance.new("TextLabel", main)
-creator.Size = UDim2.new(1, 0, 0, 20)
-creator.Position = UDim2.new(0, 0, 1, -25)
+-- Creator
+local creator = Instance.new("TextLabel")
+creator.Size = UDim2.new(1, -20, 0, 18)
+creator.Position = UDim2.new(0, 10, 1, -25)
+creator.BackgroundTransparency = 1
 creator.Text = "Created by: Nero"
 creator.Font = Enum.Font.Gotham
-creator.TextScaled = true
-creator.BackgroundTransparency = 1
+creator.TextSize = 14
 creator.TextColor3 = Color3.fromRGB(200,200,200)
+creator.TextScaled = true
+creator.Parent = mainFrame
 
--- LOGIC
-instantBtn.MouseButton1Click:Connect(function()
+-- INSTANT STEAL BUTTON
+local instantButton = Instance.new("TextButton")
+instantButton.Size = UDim2.new(0, 180, 0, 50)
+instantButton.Position = UDim2.new(0.5, -90, 0, 70)
+instantButton.Text = "INSTANT STEAL"
+instantButton.Font = Enum.Font.GothamBold
+instantButton.TextSize = 18
+instantButton.TextColor3 = Color3.fromRGB(0,0,0)
+instantButton.BackgroundColor3 = Color3.fromRGB(0,255,128)
+instantButton.Parent = mainFrame
+Instance.new("UICorner", instantButton).CornerRadius = UDim.new(0, 10)
+
+-- FLASH STEP BUTTON
+local flashButton = Instance.new("TextButton")
+flashButton.Size = UDim2.new(0, 180, 0, 50)
+flashButton.Position = UDim2.new(0.5, -90, 0, 140)
+flashButton.Text = "FLASH STEP"
+flashButton.Font = Enum.Font.GothamBold
+flashButton.TextSize = 18
+flashButton.TextColor3 = Color3.fromRGB(255,255,255)
+flashButton.BackgroundColor3 = Color3.fromRGB(255,85,0)
+flashButton.Parent = mainFrame
+Instance.new("UICorner", flashButton).CornerRadius = UDim.new(0, 10)
+
+-- INSTANT STEAL LOGIC
+instantButton.MouseButton1Click:Connect(function()
     local char = player.Character
     if char and char:FindFirstChild("HumanoidRootPart") and markPosition then
         local hrp = char.HumanoidRootPart
+
+        -- save last position
         lastPosition = hrp.CFrame
+
+        -- tp to spawn mark
         hrp.CFrame = CFrame.new(markPosition + Vector3.new(0,3,0))
+
+        -- blink back
         task.wait(0.4)
-        hrp.CFrame = lastPosition
+        if hrp then
+            hrp.CFrame = lastPosition
+        end
     end
 end)
 
-flashBtn.MouseButton1Click:Connect(function()
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
+-- FLASH STEP (5 studs forward)
+flashButton.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local hrp = char.HumanoidRootPart
         hrp.CFrame = hrp.CFrame + (hrp.CFrame.LookVector * 5)
     end
-end)
-
-invisBtn.MouseButton1Click:Connect(function()
-    invisible = not invisible
-    setInvisible(invisible)
-    invisBtn.Text = "INVISIBLE : " .. (invisible and "ON" or "OFF")
-    invisBtn.BackgroundColor3 = invisible and Color3.fromRGB(0,170,255) or Color3.fromRGB(120,120,120)
-end)
-
-fastBtn.MouseButton1Click:Connect(function()
-    fastInteract = not fastInteract
-    applyFastInteract(fastInteract)
-    fastBtn.Text = "FAST INTERACT : " .. (fastInteract and "ON" or "OFF")
-    fastBtn.BackgroundColor3 = fastInteract and Color3.fromRGB(170,0,255) or Color3.fromRGB(120,120,120)
 end)
