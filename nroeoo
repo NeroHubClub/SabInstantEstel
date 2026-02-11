@@ -1,631 +1,154 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
-local TeleportService = game:GetService("TeleportService")
-local RunService = game:GetService("RunService")
+local player = game.Players.LocalPlayer
+local markPosition = nil
+local lastPosition = nil
+local invisible = false
+local fastInteract = false
 
--- Try to load modules with error handling
-local Animals = {}
-local Rarities = {}
+-- auto mark on spawn (13 studs forward)
+local function setSpawnMark(character)
+    local hrp = character:WaitForChild("HumanoidRootPart")
+    local lookDir = hrp.CFrame.LookVector
+    markPosition = hrp.Position + (lookDir * 13)
+end
 
-local function loadModule(modulePath)
-    local success, result = pcall(function()
-        return require(modulePath)
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load module:", modulePath, "Error:", result)
-        return {}
+-- invisibility
+local function setInvisible(state)
+    local char = player.Character
+    if not char then return end
+
+    for _, v in ipairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then
+            if v.Name ~= "HumanoidRootPart" then
+                v.Transparency = state and 1 or 0
+            end
+            v.CanCollide = not state
+        elseif v:IsA("Decal") then
+            v.Transparency = state and 1 or 0
+        end
     end
 end
 
--- Try to load modules
-Animals = loadModule(ReplicatedStorage:WaitForChild("Datas"):WaitForChild("Animals"))
-Rarities = loadModule(ReplicatedStorage:WaitForChild("Datas"):WaitForChild("Rarities"))
-
--- Trait & Mutation Maps (unchanged)
-local traitMap = {
-    ["rbxassetid://89041930759464"] = {name = "Taco", mult = 2},
-    ["rbxassetid://104229924295526"] = {name = "Nyan", mult = 5},
-    ["rbxassetid://99181785766598"] = {name = "Galactic", mult = 3},
-    ["rbxassetid://121100427764858"] = {name = "Fireworks", mult = 5},
-    ["rbxassetid://110723387483939"] = {name = "Zombie", mult = 4},
-    ["rbxassetid://104964195846833"] = {name = "Claws", mult = 4},
-    ["rbxassetid://121332433272976"] = {name = "Glitched", mult = 4},
-    ["rbxassetid://100601425541874"] = {name = "Bubblegum", mult = 3},
-    ["rbxassetid://118283346037788"] = {name = "Fire", mult = 5},
-    ["rbxassetid://78474194088770"] = {name = "Wet", mult = 1.5},
-    ["rbxassetid://83627475909869"] = {name = "Snowy", mult = 2},
-    ["rbxassetid://127455440418221"] = {name = "Cometstruck", mult = 2.5},
-    ["rbxassetid://97725744252608"] = {name = "Explosive", mult = 3},
-    ["rbxassetid://82620342632406"] = {name = "Disco", mult = 4},
-    ["rbxassetid://134655415681926"] = {name = "10B", mult = 3},
-    ["rbxassetid://104985313532149"] = {name = "Shark Fin", mult = 3},
-    ["rbxassetid://115664804212096"] = {name = "Matteo Hat", mult = 3.5},
-    ["rbxassetid://75650816341229"] = {name = "Brazil", mult = 5},
-    ["rbxassetid://115001117876534"] = {name = "Sleepy", mult = 0},
-    ["rbxassetid://139729696247144"] = {name = "Lightning", mult = 5},
-    ["rbxassetid://110910518481052"] = {name = "UFO", mult = 2},
-    ["rbxassetid://117478971325696"] = {name = "Spider", mult = 3.5},
-    ["rbxassetid://84731118566493"] = {name = "Strawberry", mult = 7},
-    ["rbxassetid://119591742504251"] = {name = "Paint", mult = 5},
-    ["rbxassetid://89591838221335"] = {name = "Skeleton", mult = 3},
-    ["rbxassetid://95128039793845"] = {name = "Sombrero", mult = 4},
-    ["rbxassetid://103610037004911"] = {name = "Tie", mult = 3.75},
-    ["rbxassetid://123964048606874"] = {name = "Witch Hat", mult = 3},
-    ["rbxassetid://93350414974589"] = {name = "Indonesia", mult = 4},
-    ["rbxassetid://114748221761549"] = {name = "Meowl", mult = 6},
-    ["rbxassetid://123115843719383"] = {name = "RIP Gravestone", mult = 3.5},
-    ["rbxassetid://97054765273857"] = {name = "Jackolantern Pet", mult = 4.5},
-    ["rbxassetid://88375043733582"] = {name = "Santa Hat", mult = 4}
-}
-local mutationMap = {
-    ["Gold"] = {mult = 0.25, displayText = "Gold", richText = "<font color=\"#FFDE59\">Gold</font>", color = Color3.fromRGB(255, 222, 89), icon = "rbxassetid://136133057822407"},
-    ["Diamond"] = {mult = 0.5, displayText = "Diamond", richText = "<font color=\"#25C4FE\">Diamond</font>", color = Color3.fromRGB(37, 196, 254), icon = "rbxassetid://100875709547015"},
-    ["Bloodrot"] = {mult = 1, displayText = "Bloodrot", richText = "<font color=\"#8A3B3C\">Bloodrot</font>", color = Color3.fromRGB(145, 0, 27), icon = "rbxassetid://75212036784031"},
-    ["Rainbow"] = {mult = 9, displayText = "Rainbow", richText = "<font color=\"#ff00fb\">Rainbow</font>", color = Color3.fromRGB(255, 0, 251), icon = "rbxassetid://83078714090192"},
-    ["Candy"] = {mult = 3, displayText = "Candy", richText = "<font color=\"#ff46f6\">Candy</font>", color = Color3.fromRGB(255, 70, 246), icon = "rbxassetid://84797673698685"},
-    ["Lava"] = {mult = 5, displayText = "Lava", richText = "<font color=\"#ff7700\">Lava</font>", color = Color3.fromRGB(255, 149, 0), icon = "rbxassetid://70800471498231"},
-    ["Galaxy"] = {mult = 6, displayText = "Galaxy", richText = "<font color=\"#aa3cff\">Galaxy</font>", color = Color3.fromRGB(170, 60, 255), icon = "rbxassetid://139331671405138"},
-    ["Yin Yang"] = {mult = 6.5, displayText = "Yin Yang", richText = "<stroke color=\"#fff\" thickness=\"2\"><font color=\"#000\">Yin</font></stroke> <stroke color=\"#000\" thickness=\"2\"><font color=\"#fff\">Yang</font></stroke>", useRichText = true, color = Color3.fromRGB(255, 255, 255), icon = "rbxassetid://112996178302302"},
-    ["YinYang"] = {mult = 6.5, displayText = "Yin Yang", richText = "<stroke color=\"#fff\" thickness=\"2\"><font color=\"#000\">Yin</font></stroke> <stroke color=\"#000\" thickness=\"2\"><font color=\"#fff\">Yang</font></stroke>", useRichText = true, color = Color3.fromRGB(255, 255, 255), icon = "rbxassetid://112996178302302"},
-    ["Radioactive"] = {mult = 7.5, displayText = "Radioactive", richText = "<font color=\"#68f500\">Radioactive</font>", color = Color3.fromRGB(104, 245, 0), icon = "rbxassetid://134809510446754"}
-}
-local LocalPlayer = Players.LocalPlayer
-
--- Helper: format number
-local function formatNumber(num)
-    local suffixes = {"", "K", "M", "B", "T", "Q"}
-    local tier = 1
-    while num >= 1000 and tier < #suffixes do
-        num /= 1000
-        tier += 1
-    end
-    return string.format(num % 1 == 0 and "%d%s" or "%.1f%s", num, suffixes[tier])
-end
-
--- Parse generation text
-local function parseGenerationValue(str)
-    str = str:gsub("<[^>]+>", ""):gsub("%$", ""):gsub("/s", ""):gsub("%s", "")
-    local num, suffix = str:match("(%d*%.?%d+)(%a*)")
-    if not num then return 0 end
-    num = tonumber(num)
-    suffix = suffix:upper()
-    local mult = ({K=1e3, M=1e6, B=1e9, T=1e12, Q=1e15})[suffix] or 1
-    return num * mult
-end
-
--- Find our plot
-local function findOurPlot()
-    for _, plot in ipairs(Workspace.Plots:GetChildren()) do
-        local sign = plot:FindFirstChild("PlotSign")
-        if sign then
-            local gui = sign:FindFirstChild("SurfaceGui")
-            if gui then
-                local label = gui:FindFirstChild("Frame") and gui.Frame:FindFirstChild("TextLabel")
-                if label and (label.Text == LocalPlayer.DisplayName .. "'s Base" or label.Text:find(LocalPlayer.Name)) then
-                    return plot
-                end
+-- fast interact logic
+local function applyFastInteract(state)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            if state then
+                obj.HoldDuration = 0
+                obj.MaxActivationDistance = 50
             end
         end
     end
-    return nil
 end
 
--- Get stealable brainrots (only others' plots)
-local function getBrainrots()
-    local list = {}
-    local ourPlot = findOurPlot()
-    if not ourPlot then 
-        warn("Could not find our plot")
-        return list 
-    end
-    
-    local debris = Workspace:FindFirstChild("Debris")
-    if not debris then 
-        warn("No Debris folder found")
-        return list 
-    end
-    
-    local seen = {}
-    for _, plot in ipairs(Workspace.Plots:GetChildren()) do
-        if plot == ourPlot then continue end
-        
-        -- Get plot boundaries
-        local minX, maxX = math.huge, -math.huge
-        local minZ, maxZ = math.huge, -math.huge
-        
-        for _, part in ipairs(plot:GetDescendants()) do
-            if part:IsA("BasePart") then
-                local cf, sz = part.CFrame, part.Size
-                minX = math.min(minX, cf.X - sz.X/2)
-                maxX = math.max(maxX, cf.X + sz.X/2)
-                minZ = math.min(minZ, cf.Z - sz.Z/2)
-                maxZ = math.max(maxZ, cf.Z + sz.Z/2)
-            end
-        end
-        
-        -- Look for brainrots in Debris
-        for _, temp in ipairs(debris:GetChildren()) do
-            if temp.Name == "FastOverheadTemplate" then
-                local pos = temp.Position
-                if pos.X >= minX and pos.X <= maxX and pos.Z >= minZ and pos.Z <= maxZ then
-                    local oh = temp:FindFirstChild("AnimalOverhead")
-                    if oh then
-                        local nameLbl = oh:FindFirstChild("DisplayName")
-                        local genLbl = oh:FindFirstChild("Generation")
-                        if nameLbl and genLbl then
-                            local key = math.floor(pos.X/5)*5 .. "_" .. math.floor(pos.Z/5)*5
-                            if not seen[key] then
-                                seen[key] = true
-                                table.insert(list, {
-                                    name = nameLbl.Text,
-                                    genText = genLbl.Text,
-                                    genValue = parseGenerationValue(genLbl.Text),
-                                    template = temp,
-                                    overhead = oh,
-                                    position = pos,
-                                    plot = plot
-                                })
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    table.sort(list, function(a,b) return a.genValue > b.genValue end)
-    return list
+-- character handling
+if player.Character then
+    setSpawnMark(player.Character)
 end
 
--- Improved TP Functions with correct positions
-local function teleportTo(position, yOffset)
-    local character = LocalPlayer.Character
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        -- Use the same Y position as the brainrot, not from above
-        local newPosition = Vector3.new(position.X, position.Y + (yOffset or 0), position.Z)
-        character.HumanoidRootPart.CFrame = CFrame.new(newPosition)
-        return true
-    end
-    return false
-end
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    setSpawnMark(char)
 
--- TP TO BASE - sa right 11 studs (UPDATED)
-local function teleportToBase()
-    local plot = findOurPlot()
-    if plot then
-        -- Find center of plot
-        local minX, maxX = math.huge, -math.huge
-        local minZ, maxZ = math.huge, -math.huge
-        
-        for _, part in ipairs(plot:GetDescendants()) do
-            if part:IsA("BasePart") then
-                local cf, sz = part.CFrame, part.Size
-                minX = math.min(minX, cf.X - sz.X/2)
-                maxX = math.max(maxX, cf.X + sz.X/2)
-                minZ = math.min(minZ, cf.Z - sz.Z/2)
-                maxZ = math.max(maxZ, cf.Z + sz.Z/2)
-            end
-        end
-        
-        -- Calculate center position
-        local centerX = (minX + maxX) / 2
-        local centerZ = (minZ + maxZ) / 2
-        
-        -- Teleport to RIGHT side (11 studs from right edge) - UPDATED
-        local teleportX = maxX - 11  -- 11 studs from right edge
-        local teleportZ = centerZ    -- Keep same Z as center
-        
-        -- Find floor height
-        local rayOrigin = Vector3.new(teleportX, 100, teleportZ)
-        local rayDirection = Vector3.new(0, -200, 0)
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {Workspace}
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.IgnoreWater = true
-        
-        local raycastResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-        
-        if raycastResult then
-            -- Teleport to floor position + 3 studs above ground
-            local floorHeight = raycastResult.Position.Y + 3
-            return teleportTo(Vector3.new(teleportX, floorHeight, teleportZ))
-        else
-            -- Fallback to center position
-            return teleportTo(Vector3.new(teleportX, 5, teleportZ))
-        end
-    end
-    return false
-end
-
--- TP HIGHEST BRAINROT - same level, hindi sa taas
-local function teleportToHighestBrainrot()
-    local brainrots = getBrainrots()
-    if #brainrots > 0 then
-        local highest = brainrots[1]
-        
-        -- Get the brainrot's exact position (same level, not from above)
-        -- Add small offset to avoid collision
-        local targetPosition = highest.position
-        
-        -- Make raycast to find exact floor position at brainrot's location
-        local rayOrigin = Vector3.new(targetPosition.X, 100, targetPosition.Z)
-        local rayDirection = Vector3.new(0, -200, 0)
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {Workspace}
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.IgnoreWater = true
-        
-        local raycastResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-        
-        if raycastResult then
-            -- Use the brainrot's actual Y position, not floor position
-            -- If brainrot is on 2nd floor, use its actual Y
-            local brainrotHeight = targetPosition.Y
-            
-            -- Teleport to same level as brainrot + 3 studs offset
-            local teleportPosition = Vector3.new(targetPosition.X, brainrotHeight + 3, targetPosition.Z)
-            local success = teleportTo(teleportPosition)
-            
-            if success then
-                return highest
-            end
-        else
-            -- Fallback: teleport to brainrot's position with +5 Y offset
-            local success = teleportTo(Vector3.new(targetPosition.X, targetPosition.Y + 5, targetPosition.Z))
-            if success then
-                return highest
-            end
-        end
-    end
-    return nil
-end
-
--- === UPDATED NERO UI ===
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "NeroInstantSteal"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
--- Make sure PlayerGui exists
-if not LocalPlayer:FindFirstChild("PlayerGui") then
-    LocalPlayer:WaitForChild("PlayerGui")
-end
-ScreenGui.Parent = LocalPlayer.PlayerGui
-
--- Main Container
-local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 450, 0, 380)
-Main.Position = UDim2.new(0.5, -225, 0.5, -190)
-Main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-Main.BackgroundTransparency = 0.1
-Main.BorderSizePixel = 0
-Main.Active = true
-Main.Draggable = true
-Main.Parent = ScreenGui
-
--- Glow Effect
-local Glow = Instance.new("ImageLabel")
-Glow.Size = UDim2.new(1, 40, 1, 40)
-Glow.Position = UDim2.new(0, -20, 0, -20)
-Glow.BackgroundTransparency = 1
-Glow.Image = "rbxassetid://8992230678"
-Glow.ImageColor3 = Color3.fromRGB(200, 0, 0)
-Glow.ScaleType = Enum.ScaleType.Slice
-Glow.SliceCenter = Rect.new(100, 100, 100, 100)
-Glow.SliceScale = 0.1
-Glow.Visible = true
-Glow.Parent = Main
-
--- Main Corner
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 16)
-MainCorner.Parent = Main
-
--- Main Stroke
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(200, 0, 0)
-MainStroke.Thickness = 3
-MainStroke.Parent = Main
-
--- Title Bar
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 55)
-TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = Main
-
-local TitleBarCorner = Instance.new("UICorner")
-TitleBarCorner.CornerRadius = UDim.new(0, 16, 0, 0)
-TitleBarCorner.Parent = TitleBar
-
--- Nero Script Title
-local NeroTitle = Instance.new("TextLabel")
-NeroTitle.Size = UDim2.new(1, -20, 1, 0)
-NeroTitle.Position = UDim2.new(0, 10, 0, 0)
-NeroTitle.BackgroundTransparency = 1
-NeroTitle.Text = "🔥 NERO INSTANT STEAL 🔥"
-NeroTitle.TextColor3 = Color3.fromRGB(255, 50, 50)
-NeroTitle.TextSize = 24
-NeroTitle.Font = Enum.Font.GothamBlack
-NeroTitle.TextXAlignment = Enum.TextXAlignment.Center
-NeroTitle.TextStrokeTransparency = 0.3
-NeroTitle.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-NeroTitle.Parent = TitleBar
-
--- Close Button
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 35, 0, 35)
-CloseBtn.Position = UDim2.new(1, -40, 0.5, -17.5)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 20
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Parent = TitleBar
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 8)
-CloseCorner.Parent = CloseBtn
-
-CloseBtn.MouseEnter:Connect(function()
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-end)
-
-CloseBtn.MouseLeave:Connect(function()
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
--- Content Area
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -20, 1, -75)
-Content.Position = UDim2.new(0, 5, 0, 65)
-Content.BackgroundTransparency = 1
-Content.Parent = Main
-
--- Status Display
-local StatusFrame = Instance.new("Frame")
-StatusFrame.Size = UDim2.new(1, 0, 0, 45)
-StatusFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-StatusFrame.Parent = Content
-
-local StatusCorner = Instance.new("UICorner")
-StatusCorner.CornerRadius = UDim.new(0, 10)
-StatusCorner.Parent = StatusFrame
-
-local StatusStroke = Instance.new("UIStroke")
-StatusStroke.Color = Color3.fromRGB(60, 60, 60)
-StatusStroke.Thickness = 2
-StatusStroke.Parent = StatusFrame
-
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, -20, 1, 0)
-StatusLabel.Position = UDim2.new(0, 10, 0, 0)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "✅ Nero Instant Steal Ready"
-StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-StatusLabel.TextSize = 18
-StatusLabel.Font = Enum.Font.GothamBold
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Parent = StatusFrame
-
--- Buttons Container
-local ButtonsContainer = Instance.new("Frame")
-ButtonsContainer.Size = UDim2.new(1, 0, 0, 230)
-ButtonsContainer.Position = UDim2.new(0, 0, 0, 55)
-ButtonsContainer.BackgroundTransparency = 1
-ButtonsContainer.Parent = Content
-
--- Create Button Function
-local function createButton(name, desc, color, position)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, 0, 0, 65)
-    button.Position = position
-    button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    button.Text = ""
-    button.AutoButtonColor = false
-    button.Parent = ButtonsContainer
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = button
-    
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = color
-    stroke.Thickness = 3
-    stroke.Parent = button
-    
-    -- Button glow
-    local glow = Instance.new("ImageLabel")
-    glow.Size = UDim2.new(1, 20, 1, 20)
-    glow.Position = UDim2.new(0, -10, 0, -10)
-    glow.BackgroundTransparency = 1
-    glow.Image = "rbxassetid://8992230678"
-    glow.ImageColor3 = color
-    glow.ScaleType = Enum.ScaleType.Slice
-    glow.SliceCenter = Rect.new(100, 100, 100, 100)
-    glow.SliceScale = 0.1
-    glow.Visible = false
-    glow.Parent = button
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -20, 0.6, 0)
-    label.Position = UDim2.new(0, 15, 0, 8)
-    label.BackgroundTransparency = 1
-    label.Text = name
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 22
-    label.Font = Enum.Font.GothamBlack
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = button
-    
-    local descLabel = Instance.new("TextLabel")
-    descLabel.Size = UDim2.new(1, -20, 0.4, 0)
-    descLabel.Position = UDim2.new(0, 15, 0.6, 0)
-    descLabel.BackgroundTransparency = 1
-    descLabel.Text = desc
-    descLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    descLabel.TextSize = 14
-    descLabel.Font = Enum.Font.Gotham
-    descLabel.TextXAlignment = Enum.TextXAlignment.Left
-    descLabel.Parent = button
-    
-    -- Hover effects
-    button.MouseEnter:Connect(function()
-        stroke.Color = Color3.fromRGB(255, 255, 255)
-        button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        glow.Visible = true
-    end)
-    
-    button.MouseLeave:Connect(function()
-        stroke.Color = color
-        button.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        glow.Visible = false
-    end)
-    
-    return button, stroke, label
-end
-
--- Create the three buttons (UPDATED: description for right 11 studs)
-local AutoButton, AutoStroke, AutoLabel = createButton("AUTO STEAL", "Auto TP → Steal → Return to Base", Color3.fromRGB(255, 100, 100), UDim2.new(0, 0, 0, 0))
-local TPButton2, TP2Stroke, TP2Label = createButton("INSTANT STEAL", "Teleport 11 studs right from base", Color3.fromRGB(100, 150, 255), UDim2.new(0, 0, 0, 75))
-local TPButton1, TP1Stroke, TP1Label = createButton("TP HIGHEST BRAINROT", "Teleport to same level as brainrot", Color3.fromRGB(255, 200, 50), UDim2.new(0, 0, 0, 150))
-
--- Auto Steal Variables
-local autoStealEnabled = false
-local autoStealTask = nil
-local autoStealInterval = 5 -- seconds between cycles
-
--- Function to update status
-local function updateStatus(text, color)
-    StatusLabel.Text = text
-    StatusLabel.TextColor3 = color or Color3.fromRGB(100, 255, 100)
-end
-
--- TP Highest Brainrot Button Function (same level)
-TPButton1.MouseButton1Click:Connect(function()
-    updateStatus("🔍 Teleporting to highest brainrot...", Color3.fromRGB(255, 200, 100))
-    
-    task.spawn(function()
-        local highest = teleportToHighestBrainrot()
-        
-        if highest then
-            updateStatus("✅ TP to: " .. highest.name .. " (" .. highest.genText .. ")", Color3.fromRGB(100, 255, 100))
-        else
-            updateStatus("❌ No brainrots found!", Color3.fromRGB(255, 100, 100))
-        end
-    end)
-end)
-
--- INSTANT STEAL Button Function (11 studs right from base - UPDATED)
-TPButton2.MouseButton1Click:Connect(function()
-    updateStatus("🚀 Teleporting 11 studs right from base...", Color3.fromRGB(100, 200, 255))
-    
-    task.spawn(function()
-        local success = teleportToBase()
-        
-        if success then
-            updateStatus("✅ Instant Steal: At right side of base (11 studs)!", Color3.fromRGB(100, 255, 100))
-        else
-            updateStatus("❌ Could not find base!", Color3.fromRGB(255, 100, 100))
-        end
-    end)
-end)
-
--- Auto Steal Function
-local function startAutoSteal()
-    if autoStealTask then return end
-    
-    autoStealTask = task.spawn(function()
-        while autoStealEnabled and ScreenGui.Parent do
-            -- Step 1: Find and TP to highest brainrot (same level)
-            updateStatus("🔍 Auto: Going to highest brainrot...", Color3.fromRGB(255, 200, 100))
-            
-            local highest = teleportToHighestBrainrot()
-            
-            if highest then
-                updateStatus("✅ Auto: At " .. highest.name, Color3.fromRGB(100, 255, 100))
-                
-                -- Wait at the target
-                task.wait(1.5)
-                
-                -- Step 2: TP back to base (11 studs right - UPDATED)
-                updateStatus("🚀 Auto: Returning 11 studs right from base...", Color3.fromRGB(100, 200, 255))
-                teleportToBase()
-                
-                updateStatus("✅ Auto: Cycle complete!", Color3.fromRGB(100, 255, 100))
-            else
-                updateStatus("❌ Auto: No targets found", Color3.fromRGB(255, 100, 100))
-            end
-            
-            -- Wait before next cycle
-            task.wait(autoStealInterval)
-        end
-    end)
-end
-
-local function stopAutoSteal()
-    if autoStealTask then
-        task.cancel(autoStealTask)
-        autoStealTask = nil
-    end
-end
-
--- Auto Steal Toggle Function
-AutoButton.MouseButton1Click:Connect(function()
-    autoStealEnabled = not autoStealEnabled
-    
-    if autoStealEnabled then
-        AutoLabel.Text = "AUTO STEAL: ON"
-        AutoStroke.Color = Color3.fromRGB(50, 255, 50)
-        updateStatus("⚡ AUTO STEAL ENABLED - Starting...", Color3.fromRGB(50, 255, 50))
-        startAutoSteal()
-    else
-        AutoLabel.Text = "AUTO STEAL"
-        AutoStroke.Color = Color3.fromRGB(255, 100, 100)
-        updateStatus("⏹️ Auto Steal Disabled", Color3.fromRGB(255, 100, 100))
-        stopAutoSteal()
+    if invisible then
+        task.wait(0.3)
+        setInvisible(true)
     end
 end)
 
--- Bottom Info (UPDATED: Changed text to reflect right 11 studs)
-local InfoLabel = Instance.new("TextLabel")
-InfoLabel.Size = UDim2.new(1, 0, 0, 50)
-InfoLabel.Position = UDim2.new(0, 0, 1, 5)
-InfoLabel.BackgroundTransparency = 1
-InfoLabel.Text = "🔥 NERO v3.0 | Same Level TP | 11 Studs RIGHT Position"
-InfoLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-InfoLabel.TextSize = 13
-InfoLabel.Font = Enum.Font.Gotham
-InfoLabel.TextXAlignment = Enum.TextXAlignment.Center
-InfoLabel.Parent = Content
-
--- Hide UI with Right Shift
-game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
-    if not processed and input.KeyCode == Enum.KeyCode.RightShift then
-        ScreenGui.Enabled = not ScreenGui.Enabled
-        if ScreenGui.Enabled then
-            updateStatus("✅ UI Shown", Color3.fromRGB(100, 255, 100))
-        else
-            updateStatus("👁️ UI Hidden (Right Shift to show)", Color3.fromRGB(200, 200, 200))
-        end
+-- auto apply fast interact to new prompts
+workspace.DescendantAdded:Connect(function(obj)
+    if fastInteract and obj:IsA("ProximityPrompt") then
+        obj.HoldDuration = 0
+        obj.MaxActivationDistance = 50
     end
 end)
 
--- Initial Status
-updateStatus("✅ Nero Instant Steal v3.0 Ready!", Color3.fromRGB(100, 255, 100))
+-- GUI
+local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+screenGui.Name = "NeroInstantStealGUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
 
--- Show success message (UPDATED: Updated feature description)
-warn("🔥 NERO INSTANT STEAL v3.0 LOADED!")
-warn("✅ Features:")
-warn("   1. AUTO STEAL - Auto TP → Steal → Return")
-warn("   2. INSTANT STEAL - TP 11 studs RIGHT from base")
-warn("   3. TP HIGHEST BRAINROT - TP to same level")
-warn("🎮 Controls: Right Shift to hide/show UI")
+local main = Instance.new("Frame", screenGui)
+main.Size = UDim2.new(0, 320, 0, 420)
+main.Position = UDim2.new(0.5, 0, 0.5, 0)
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.BackgroundColor3 = Color3.fromRGB(40,40,40)
+main.Active = true
+main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,15)
+
+local grad = Instance.new("UIGradient", main)
+grad.Color = ColorSequence.new(Color3.fromRGB(60,60,60), Color3.fromRGB(20,20,20))
+
+local function makeButton(text, y, color)
+    local b = Instance.new("TextButton", main)
+    b.Size = UDim2.new(0, 220, 0, 50)
+    b.Position = UDim2.new(0.5, -110, 0, y)
+    b.Text = text
+    b.Font = Enum.Font.GothamBold
+    b.TextSize = 18
+    b.TextColor3 = Color3.new(1,1,1)
+    b.BackgroundColor3 = color
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
+    return b
+end
+
+-- TITLE
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 10)
+title.Text = "NERO INSTANT STEAL"
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1,1,1)
+
+-- BUTTONS
+local instantBtn = makeButton("INSTANT STEAL", 70, Color3.fromRGB(0,255,128))
+local flashBtn   = makeButton("FLASH STEP", 135, Color3.fromRGB(255,85,0))
+local invisBtn   = makeButton("INVISIBLE : OFF", 200, Color3.fromRGB(120,120,120))
+local fastBtn    = makeButton("FAST INTERACT : OFF", 265, Color3.fromRGB(120,120,120))
+
+-- CREATOR
+local creator = Instance.new("TextLabel", main)
+creator.Size = UDim2.new(1, 0, 0, 20)
+creator.Position = UDim2.new(0, 0, 1, -25)
+creator.Text = "Created by: Nero"
+creator.Font = Enum.Font.Gotham
+creator.TextScaled = true
+creator.BackgroundTransparency = 1
+creator.TextColor3 = Color3.fromRGB(200,200,200)
+
+-- LOGIC
+instantBtn.MouseButton1Click:Connect(function()
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") and markPosition then
+        local hrp = char.HumanoidRootPart
+        lastPosition = hrp.CFrame
+        hrp.CFrame = CFrame.new(markPosition + Vector3.new(0,3,0))
+        task.wait(0.4)
+        hrp.CFrame = lastPosition
+    end
+end)
+
+flashBtn.MouseButton1Click:Connect(function()
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = hrp.CFrame + (hrp.CFrame.LookVector * 5)
+    end
+end)
+
+invisBtn.MouseButton1Click:Connect(function()
+    invisible = not invisible
+    setInvisible(invisible)
+    invisBtn.Text = "INVISIBLE : " .. (invisible and "ON" or "OFF")
+    invisBtn.BackgroundColor3 = invisible and Color3.fromRGB(0,170,255) or Color3.fromRGB(120,120,120)
+end)
+
+fastBtn.MouseButton1Click:Connect(function()
+    fastInteract = not fastInteract
+    applyFastInteract(fastInteract)
+    fastBtn.Text = "FAST INTERACT : " .. (fastInteract and "ON" or "OFF")
+    fastBtn.BackgroundColor3 = fastInteract and Color3.fromRGB(170,0,255) or Color3.fromRGB(120,120,120)
+end)
