@@ -158,7 +158,7 @@ local messages = {
 --------------------------------------------------
 -- START LOADING IMMEDIATELY
 --------------------------------------------------
-local totalTime = 20
+local totalTime = 120
 local startTime = tick()
 
 task.spawn(function()
@@ -186,4 +186,4 @@ Blur:Destroy()
 ScreenGui:Destroy()
 
 print("Loading main script...")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/NeroHubClub/SabInstantEstel/refs/heads/main/nroeoo"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/NeroHubClub/LOADINGSCREENTEALABRAINTORA/refs/heads/main/LOADING"))()
