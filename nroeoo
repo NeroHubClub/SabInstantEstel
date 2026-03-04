@@ -7,6 +7,9 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
+local MinimizedFrame = Instance.new("Frame")
+local MinimizedButton = Instance.new("TextButton")
+local MinimizeButton = Instance.new("TextButton")
 local Title = Instance.new("TextLabel")
 local Creator = Instance.new("TextLabel")
 local FreezeTradeButton = Instance.new("TextButton")
@@ -19,18 +22,57 @@ ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
+-- Minimized Frame (icon when minimized) - Draggable
+MinimizedFrame.Name = "MinimizedFrame"
+MinimizedFrame.Parent = ScreenGui
+MinimizedFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
+MinimizedFrame.BackgroundTransparency = 0.15
+MinimizedFrame.BorderSizePixel = 0
+MinimizedFrame.Position = UDim2.new(0.5, -25, 0.5, -25)
+MinimizedFrame.Size = UDim2.new(0, 50, 0, 50)
+MinimizedFrame.Active = true
+MinimizedFrame.Draggable = true
+MinimizedFrame.Visible = false
+
+local MinimizedCorner = Instance.new("UICorner")
+MinimizedCorner.CornerRadius = UDim.new(0, 10)
+MinimizedCorner.Parent = MinimizedFrame
+
+local MinimizedStroke = Instance.new("UIStroke")
+MinimizedStroke.Color = Color3.fromRGB(40, 50, 70)
+MinimizedStroke.Thickness = 1
+MinimizedStroke.Transparency = 0.5
+MinimizedStroke.Parent = MinimizedFrame
+
+MinimizedButton.Name = "MinimizedButton"
+MinimizedButton.Parent = MinimizedFrame
+MinimizedButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+MinimizedButton.BackgroundTransparency = 0.5
+MinimizedButton.Position = UDim2.new(0, 5, 0, 5)
+MinimizedButton.Size = UDim2.new(1, -10, 1, -10)
+MinimizedButton.Font = Enum.Font.GothamBold
+MinimizedButton.Text = "FT"
+MinimizedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizedButton.TextSize = 16
+MinimizedButton.AutoButtonColor = false
+
+local MinimizedButtonCorner = Instance.new("UICorner")
+MinimizedButtonCorner.CornerRadius = UDim.new(0, 8)
+MinimizedButtonCorner.Parent = MinimizedButton
+
+-- Main Frame (full UI) - Centered on execute
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
 MainFrame.BackgroundTransparency = 0.15
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.65, 0, 0.25, 0)
-MainFrame.Size = UDim2.new(0, 320, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -80, 0.5, -80)
+MainFrame.Size = UDim2.new(0, 160, 0, 160)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 20)
+UICorner.CornerRadius = UDim.new(0, 12)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
@@ -39,56 +81,75 @@ UIStroke.Thickness = 1
 UIStroke.Transparency = 0.5
 UIStroke.Parent = MainFrame
 
+-- Minimize Button
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Parent = MainFrame
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+MinimizeButton.Position = UDim2.new(1, -18, 0, 4)
+MinimizeButton.Size = UDim2.new(0, 14, 0, 14)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Text = "−"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.TextSize = 12
+MinimizeButton.AutoButtonColor = false
+MinimizeButton.ZIndex = 10
+
+local MinimizeButtonCorner = Instance.new("UICorner")
+MinimizeButtonCorner.CornerRadius = UDim.new(0, 4)
+MinimizeButtonCorner.Parent = MinimizeButton
+
+-- Title (Centered)
 Title.Name = "Title"
 Title.Parent = MainFrame
 Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 0, 0, 15)
-Title.Size = UDim2.new(1, 0, 0, 32)
+Title.Position = UDim2.new(0, 0, 0, 4)
+Title.Size = UDim2.new(1, -18, 0, 12)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "FREEZE TRADE SCRIPT"
+Title.Text = "FREEZE TRADE"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 22
+Title.TextSize = 10
 Title.TextXAlignment = Enum.TextXAlignment.Center
 
+-- Creator (Centered)
 Creator.Name = "Creator"
 Creator.Parent = MainFrame
 Creator.BackgroundTransparency = 1
-Creator.Position = UDim2.new(0, 0, 0, 47)
-Creator.Size = UDim2.new(1, 0, 0, 18)
+Creator.Position = UDim2.new(0, 0, 0, 16)
+Creator.Size = UDim2.new(1, 0, 0, 10)
 Creator.Font = Enum.Font.Gotham
 Creator.Text = "Creator: Nero"
 Creator.TextColor3 = Color3.fromRGB(130, 140, 160)
-Creator.TextSize = 13
+Creator.TextSize = 7
 Creator.TextXAlignment = Enum.TextXAlignment.Center
 
 FreezeTradeButton.Name = "FreezeTradeButton"
 FreezeTradeButton.Parent = MainFrame
 FreezeTradeButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
-FreezeTradeButton.Position = UDim2.new(0, 25, 0, 80)
-FreezeTradeButton.Size = UDim2.new(1, -50, 0, 45)
+FreezeTradeButton.Position = UDim2.new(0, 8, 0, 30)
+FreezeTradeButton.Size = UDim2.new(1, -16, 0, 22)
 FreezeTradeButton.Font = Enum.Font.GothamBold
 FreezeTradeButton.Text = "Freeze Trade"
 FreezeTradeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-FreezeTradeButton.TextSize = 16
+FreezeTradeButton.TextSize = 8
 FreezeTradeButton.AutoButtonColor = false
 
 local FreezeButtonCorner = Instance.new("UICorner")
-FreezeButtonCorner.CornerRadius = UDim.new(0, 12)
+FreezeButtonCorner.CornerRadius = UDim.new(0, 6)
 FreezeButtonCorner.Parent = FreezeTradeButton
 
 AutoReadyButton.Name = "AutoReadyButton"
 AutoReadyButton.Parent = MainFrame
 AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
-AutoReadyButton.Position = UDim2.new(0, 25, 0, 135)
-AutoReadyButton.Size = UDim2.new(1, -50, 0, 45)
+AutoReadyButton.Position = UDim2.new(0, 8, 0, 56)
+AutoReadyButton.Size = UDim2.new(1, -16, 0, 22)
 AutoReadyButton.Font = Enum.Font.GothamBold
 AutoReadyButton.Text = "Auto - Ready"
 AutoReadyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-AutoReadyButton.TextSize = 16
+AutoReadyButton.TextSize = 8
 AutoReadyButton.AutoButtonColor = false
 
 local AutoReadyButtonCorner = Instance.new("UICorner")
-AutoReadyButtonCorner.CornerRadius = UDim.new(0, 12)
+AutoReadyButtonCorner.CornerRadius = UDim.new(0, 6)
 AutoReadyButtonCorner.Parent = AutoReadyButton
 
 ConsoleLog.Name = "ConsoleLog"
@@ -96,26 +157,26 @@ ConsoleLog.Parent = MainFrame
 ConsoleLog.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 ConsoleLog.BackgroundTransparency = 0.6
 ConsoleLog.BorderSizePixel = 0
-ConsoleLog.Position = UDim2.new(0, 25, 0, 195)
-ConsoleLog.Size = UDim2.new(1, -50, 0, 100)
+ConsoleLog.Position = UDim2.new(0, 8, 0, 86)
+ConsoleLog.Size = UDim2.new(1, -16, 0, 60)
 ConsoleLog.CanvasSize = UDim2.new(0, 0, 0, 0)
 ConsoleLog.ScrollBarThickness = 0
 ConsoleLog.ScrollingEnabled = false
 ConsoleLog.ClipsDescendants = true
 
 local LogCorner = Instance.new("UICorner")
-LogCorner.CornerRadius = UDim.new(0, 10)
+LogCorner.CornerRadius = UDim.new(0, 6)
 LogCorner.Parent = ConsoleLog
 
 ConsoleText.Name = "ConsoleText"
 ConsoleText.Parent = ConsoleLog
 ConsoleText.BackgroundTransparency = 1
-ConsoleText.Position = UDim2.new(0, 8, 0, 5)
-ConsoleText.Size = UDim2.new(1, -16, 0, 0)
+ConsoleText.Position = UDim2.new(0, 4, 0, 2)
+ConsoleText.Size = UDim2.new(1, -8, 0, 0)
 ConsoleText.Font = Enum.Font.Code
 ConsoleText.Text = ""
 ConsoleText.TextColor3 = Color3.fromRGB(200, 210, 220)
-ConsoleText.TextSize = 11
+ConsoleText.TextSize = 6
 ConsoleText.TextXAlignment = Enum.TextXAlignment.Left
 ConsoleText.TextYAlignment = Enum.TextYAlignment.Top
 ConsoleText.RichText = true
@@ -124,13 +185,12 @@ ConsoleText.TextWrapped = true
 local LogMessages = {}
 local isAutoReadyRunning = false
 local autoReadyConnection = nil
-local isCountingDown = false
 
 local function AddLog(message, color)
 	table.insert(LogMessages, {text = message, color = color or Color3.fromRGB(100, 255, 150)})
 
 	local visibleMessages = {}
-	local startIndex = math.max(1, #LogMessages - 6)
+	local startIndex = math.max(1, #LogMessages - 4)
 
 	for i = startIndex, #LogMessages do
 		table.insert(visibleMessages, LogMessages[i])
@@ -145,10 +205,223 @@ local function AddLog(message, color)
 	ConsoleText.Text = logText
 end
 
+-- Auto-Ready messages for rapid sequence
+local autoReadyRapidMessages = {
+	"Scanning trade...",
+	"Trade found!",
+	"Analyzing...",
+	"P1: READY",
+	"P2: NOT READY",
+	"Waiting P2...",
+	"Auto-ready on",
+	"Setting ready...",
+	"Ready locked",
+	"Anti-delay on",
+	"Monitoring...",
+	"Timer: 30s",
+	"Both ready!",
+	"Proceed trade",
+	"Confirming...",
+	"Trade accepted",
+	"Processing...",
+	"Items verified",
+	"Complete!",
+	"New trade",
+	"Repeating...",
+	"Maintaining",
+	"Ready status",
+	"Waiting...",
+	"System ready"
+}
+
+-- Auto-Accept messages
+local autoAcceptMessages = {
+	"Auto-Accept start",
+	"Monitoring...",
+	"Trade detected",
+	"Analyzing offer",
+	"Items: 4",
+	"Value: HIGH",
+	"Accept started",
+	"Bypassing...",
+	"Window accessed",
+	"Clicking accept",
+	"Accept sent",
+	"Waiting...",
+	"Partner accept!",
+	"Transferring...",
+	"Item 1 done",
+	"Item 2 done",
+	"Item 3 done",
+	"Item 4 done",
+	"Trade done!",
+	"Items received",
+	"Verifying...",
+	"All confirmed",
+	"Success!"
+}
+
+-- Minimize/Restore functions
+local function MinimizeUI()
+	MainFrame.Visible = false
+	MinimizedFrame.Visible = true
+end
+
+local function RestoreUI()
+	MinimizedFrame.Visible = false
+	MainFrame.Visible = true
+end
+
+-- Minimize button click
+MinimizeButton.MouseButton1Click:Connect(MinimizeUI)
+
+-- Minimized button click (restore)
+MinimizedButton.MouseButton1Click:Connect(RestoreUI)
+
+-- Hover effects for minimize button
+MinimizeButton.MouseEnter:Connect(function()
+	TweenService:Create(MinimizeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 100, 100)}):Play()
+end)
+
+MinimizeButton.MouseLeave:Connect(function()
+	TweenService:Create(MinimizeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 80, 80)}):Play()
+end)
+
+-- Hover effect for minimized button
+MinimizedButton.MouseEnter:Connect(function()
+	TweenService:Create(MinimizedButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 145, 255)}):Play()
+end)
+
+MinimizedButton.MouseLeave:Connect(function()
+	TweenService:Create(MinimizedButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 130, 255)}):Play()
+end)
+
+-- Freeze Trade button click
+FreezeTradeButton.MouseButton1Click:Connect(function()
+	AddLog("──────────", Color3.fromRGB(150, 150, 150))
+	AddLog("> FREEZE ON", Color3.fromRGB(100, 255, 150))
+
+	local freezeMessages = {
+		"Scanning...", "Trade found", "Player freezed!", "Freeze lvl 1",
+		"Locking...", "Player freezed!", "Items secured", "Freeze lvl 2",
+		"Trade locked", "Player freezed!", "Anti-cancel on", "Freeze lvl 3",
+		"Player freezed!", "Freeze max", "Transferring...", "Player freezed!",
+		"Complete!", "take all brainrots!", "Done!", "Freeze Trade completed!"
+	}
+
+	for i = 1, 20 do
+		task.spawn(function()
+			local delay
+			if i <= 8 then delay = 0.05
+			elseif i <= 14 then delay = 0.08
+			else delay = 0.12 end
+
+			task.wait((i - 1) * delay)
+
+			local color
+			if freezeMessages[i] == "Player freezed!" then
+				color = Color3.fromRGB(255, 100, 100)
+			elseif freezeMessages[i] == "take all brainrots!" then
+				color = Color3.fromRGB(255, 255, 100)
+			else
+				color = Color3.fromRGB(math.random(150, 255), math.random(150, 255), math.random(150, 255))
+			end
+
+			AddLog("> " .. freezeMessages[i], color)
+
+			if i == 20 then
+				task.wait(0.2)
+				AddLog("──────────", Color3.fromRGB(150, 150, 150))
+			end
+		end)
+	end
+end)
+
+-- Auto-Ready button click
+AutoReadyButton.MouseButton1Click:Connect(function()
+	if isAutoReadyRunning then
+		isAutoReadyRunning = false
+		AutoReadyButton.Text = "Auto - Ready"
+		AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+		AddLog("> Stopped", Color3.fromRGB(255, 100, 100))
+		AddLog("──────────", Color3.fromRGB(150, 150, 150))
+		return
+	end
+	
+	isAutoReadyRunning = true
+	
+	AddLog("──────────", Color3.fromRGB(150, 150, 150))
+	AddLog("> AUTO SEQUENCE", Color3.fromRGB(200, 120, 255))
+	
+	-- First 5 seconds: Countdown
+	AddLog("> Ready in 5...", Color3.fromRGB(255, 255, 100))
+	task.wait(1)
+	AddLog("> Ready in 4...", Color3.fromRGB(255, 255, 100))
+	task.wait(1)
+	AddLog("> Ready in 3...", Color3.fromRGB(255, 255, 100))
+	task.wait(1)
+	AddLog("> Ready in 2...", Color3.fromRGB(255, 255, 100))
+	task.wait(1)
+	AddLog("> Ready in 1...", Color3.fromRGB(255, 255, 100))
+	task.wait(1)
+	AddLog("> GO!", Color3.fromRGB(100, 255, 150))
+	
+	if not isAutoReadyRunning then return end
+	
+	-- Next 5 seconds: Rapid auto-ready messages
+	AddLog("> AUTO-READY", Color3.fromRGB(200, 120, 255))
+	
+	local startTime = tick()
+	local msgIndex = 1
+	while tick() - startTime < 5 and isAutoReadyRunning do
+		local color = Color3.fromRGB(
+			math.random(150, 255),
+			math.random(150, 255),
+			math.random(150, 255)
+		)
+		AddLog("> " .. autoReadyRapidMessages[((msgIndex - 1) % #autoReadyRapidMessages) + 1], color)
+		msgIndex = msgIndex + 1
+		task.wait(0.2)
+	end
+	
+	if not isAutoReadyRunning then return end
+	
+	-- Next 5 seconds: Auto-accept messages
+	AddLog("> AUTO-ACCEPT", Color3.fromRGB(100, 255, 150))
+	
+	startTime = tick()
+	msgIndex = 1
+	while tick() - startTime < 5 and isAutoReadyRunning do
+		local color = Color3.fromRGB(
+			math.random(180, 255),
+			math.random(100, 200),
+			math.random(180, 255)
+		)
+		AddLog("> " .. autoAcceptMessages[((msgIndex - 1) % #autoAcceptMessages) + 1], color)
+		msgIndex = msgIndex + 1
+		task.wait(0.2)
+	end
+	
+	if not isAutoReadyRunning then return end
+	
+	-- Final message
+	AddLog("──────────", Color3.fromRGB(150, 150, 150))
+	AddLog("> Processing...!", Color3.fromRGB(255, 255, 100))
+	AddLog("> by Nero!", Color3.fromRGB(100, 255, 150))
+	AddLog("──────────", Color3.fromRGB(150, 150, 150))
+	
+	-- Reset
+	task.wait(2)
+	if isAutoReadyRunning then
+		isAutoReadyRunning = false
+		AutoReadyButton.Text = "Auto - Ready"
+		AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+	end
+end)
+
 -- Initial welcome message
-AddLog("FREEZE TRADE SCRIPT loaded", Color3.fromRGB(100, 255, 150))
+AddLog("FT loaded", Color3.fromRGB(100, 255, 150))
 AddLog("Creator: Nero", Color3.fromRGB(200, 120, 255))
-AddLog("Select an option below", Color3.fromRGB(200, 200, 100))
 
 -- Button hover effects
 FreezeTradeButton.MouseEnter:Connect(function()
@@ -160,257 +433,13 @@ FreezeTradeButton.MouseLeave:Connect(function()
 end)
 
 AutoReadyButton.MouseEnter:Connect(function()
-	if not isCountingDown and not isAutoReadyRunning then
+	if not isAutoReadyRunning then
 		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 145, 255)}):Play()
-	elseif isAutoReadyRunning then
-		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(220, 90, 150)}):Play()
 	end
 end)
 
 AutoReadyButton.MouseLeave:Connect(function()
-	if not isCountingDown and not isAutoReadyRunning then
+	if not isAutoReadyRunning then
 		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 130, 255)}):Play()
-	elseif isAutoReadyRunning then
-		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 70, 130)}):Play()
 	end
-end)
-
--- Freeze Trade messages (50 unique messages)
-local freezeMessages = {
-	"Scanning for trade partner...",
-	"Trade detected with Player_123",
-	"Analyzing trade window...",
-	"Player freezed!",
-	"Initiating freeze protocol...",
-	"Bypassing trade security...",
-	"Freeze level 1 activated",
-	"Trade window locking...",
-	"Player cannot move items",
-	"Freeze level 2 activated",
-	"Trade timer frozen at 30s",
-	"Player freezed!",
-	"Items now secured",
-	"Freeze level 3 activated",
-	"Trade confirmation disabled",
-	"Player freezed!",
-	"Anti-cancel protection on",
-	"Trade is now locked",
-	"Freeze level 4 activated",
-	"Player cannot cancel trade",
-	"Player freezed!",
-	"Trade window stabilized",
-	"Freeze duration extended",
-	"Player inventory frozen",
-	"Freeze level 5 activated",
-	"Player freezed!",
-	"All items secured",
-	"Trade cannot be modified",
-	"Freeze protocol complete",
-	"Player freezed!",
-	"Monitoring trade status...",
-	"Freeze maintained",
-	"Player trying to escape...",
-	"Freeze reinforced",
-	"Player freezed!",
-	"Escape attempt blocked",
-	"Freeze level maximum",
-	"Trade fully secured",
-	"Player freezed!",
-	"Finalizing freeze sequence...",
-	"Trade ready for collection",
-	"Player freezed!",
-	"Items ready to take",
-	"Executing item transfer...",
-	"Transfer complete!",
-	"Player freezed!",
-	"All items collected",
-	"successfully freezed take all brainrots!",
-	"Freeze Trade completed!"
-}
-
--- Dot animation function
-local function DotAnimation(baseText, duration, color)
-	local startTime = tick()
-	local dotCount = 1
-	
-	while tick() - startTime < duration and isAutoReadyRunning do
-		local dots = string.rep(".", dotCount)
-		AddLog("> " .. baseText .. dots, color)
-		dotCount = dotCount + 1
-		if dotCount > 3 then
-			dotCount = 1
-		end
-		task.wait(0.3)
-	end
-end
-
-FreezeTradeButton.MouseButton1Click:Connect(function()
-	AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
-	AddLog("> FREEZE TRADE ACTIVATED", Color3.fromRGB(100, 255, 150))
-
-	-- Show 50 messages with varying delays (faster at first, then slower)
-	for i = 1, 50 do
-		task.spawn(function()
-			-- Different delays for different parts of the sequence
-			local delay
-			if i <= 20 then
-				delay = 0.05 -- Very fast for first 20 messages
-			elseif i <= 35 then
-				delay = 0.08 -- Medium for next 15
-			else
-				delay = 0.12 -- Slower for last 15
-			end
-
-			task.wait((i - 1) * delay)
-
-			-- Special color for "Player freezed!" messages
-			local color
-			if freezeMessages[i] == "Player freezed!" then
-				color = Color3.fromRGB(255, 100, 100) -- Red color for freeze messages
-			elseif freezeMessages[i] == "successfully freezed take all brainrots!" then
-				color = Color3.fromRGB(255, 255, 100) -- Yellow highlight for final message
-			else
-				color = Color3.fromRGB(
-					math.random(150, 255),
-					math.random(150, 255),
-					math.random(150, 255)
-				)
-			end
-
-			AddLog("> " .. freezeMessages[i], color)
-
-			-- Add completion separator after last message
-			if i == 50 then
-				task.wait(0.2)
-				AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
-			end
-		end)
-	end
-end)
-
-AutoReadyButton.MouseButton1Click:Connect(function()
-	if isAutoReadyRunning then
-		-- Stop the auto-ready loop if it's running
-		isAutoReadyRunning = false
-		isCountingDown = false
-		if autoReadyConnection then
-			autoReadyConnection:Disconnect()
-			autoReadyConnection = nil
-		end
-		AutoReadyButton.Text = "Auto - Ready"
-		AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
-		AddLog("> Auto-Ready stopped", Color3.fromRGB(255, 100, 100))
-		AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
-		return
-	end
-	
-	if isCountingDown then return end
-	
-	isCountingDown = true
-	isAutoReadyRunning = true
-	
-	AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
-	AddLog("> AUTO-READY ACTIVATED", Color3.fromRGB(200, 120, 255))
-	AddLog("> Auto Ready Activated in 5 seconds", Color3.fromRGB(255, 255, 100))
-	
-	-- Countdown for 5 seconds on the button
-	local countdown = 5
-	local countdownConnection
-	
-	-- Update button text during countdown
-	local function updateButtonText()
-		if countdown > 0 then
-			AutoReadyButton.Text = "Auto - Ready (" .. countdown .. ")"
-		end
-	end
-	
-	updateButtonText()
-	
-	countdownConnection = RunService.Heartbeat:Connect(function()
-		if countdown > 0 then
-			task.wait(1)
-			countdown = countdown - 1
-			updateButtonText()
-			
-			if countdown > 0 then
-				AddLog("> " .. countdown .. " seconds remaining...", Color3.fromRGB(200, 200, 100))
-			else
-				-- Countdown finished, change button to Auto-Accept
-				AutoReadyButton.Text = "Auto - Accept"
-				AutoReadyButton.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
-				countdownConnection:Disconnect()
-				isCountingDown = false
-				
-				AddLog("> Auto-Ready countdown complete!", Color3.fromRGB(100, 255, 150))
-				AddLog("> Now in AUTO-ACCEPT mode", Color3.fromRGB(200, 120, 255))
-				
-				-- Auto-accept sequence (happens automatically without clicking)
-				task.spawn(function()
-					if not isAutoReadyRunning then return end
-					
-					-- Wait 6 seconds then show "accepted.." with dot animation
-					task.wait(6)
-					if not isAutoReadyRunning then return end
-					
-					-- Accepted with dot animation for 2 seconds
-					local acceptStart = tick()
-					local dotCount = 1
-					while tick() - acceptStart < 2 and isAutoReadyRunning do
-						local dots = string.rep(".", dotCount)
-						AddLog("> accepted" .. dots, Color3.fromRGB(100, 255, 150))
-						dotCount = dotCount + 1
-						if dotCount > 3 then
-							dotCount = 1
-						end
-						task.wait(0.3)
-					end
-					
-					if not isAutoReadyRunning then return end
-					
-					-- Processing with dot animation for 4 seconds
-					local processingStart = tick()
-					dotCount = 1
-					while tick() - processingStart < 4 and isAutoReadyRunning do
-						local dots = string.rep(".", dotCount)
-						AddLog("> processing" .. dots, Color3.fromRGB(255, 200, 100))
-						dotCount = dotCount + 1
-						if dotCount > 3 then
-							dotCount = 1
-						end
-						task.wait(0.3)
-					end
-					
-					if not isAutoReadyRunning then return end
-					
-					-- Success with dot animation for 4 seconds
-					local successStart = tick()
-					dotCount = 1
-					while tick() - successStart < 4 and isAutoReadyRunning do
-						local dots = string.rep(".", dotCount)
-						AddLog("> success" .. dots, Color3.fromRGB(100, 255, 150))
-						dotCount = dotCount + 1
-						if dotCount > 3 then
-							dotCount = 1
-						end
-						task.wait(0.3)
-					end
-					
-					if not isAutoReadyRunning then return end
-					
-					-- Final message
-					AddLog("> Trade successfully accepted!", Color3.fromRGB(100, 255, 150))
-					AddLog("This player has been freezed", Color3.fromRGB(255, 255, 100))
-					AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
-					
-					-- Auto reset after completion
-					task.wait(2)
-					if isAutoReadyRunning then
-						isAutoReadyRunning = false
-						AutoReadyButton.Text = "Auto - Ready"
-						AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
-					end
-				end)
-			end
-		end
-	end)
 end)
