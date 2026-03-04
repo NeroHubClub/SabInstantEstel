@@ -1,189 +1,416 @@
 local Players = game:GetService("Players")
-local Lighting = game:GetService("Lighting")
-local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
-
-pcall(function()
-	StarterGui:SetCore("TopbarEnabled", false)
-end)
-
-if Lighting:FindFirstChild("FullScreenBlur") then
-	Lighting.FullScreenBlur:Destroy()
-end
-
-local Blur = Instance.new("BlurEffect")
-Blur.Name = "FullScreenBlur"
-Blur.Size = 45
-Blur.Parent = Lighting
+local PlayerGui = Player:WaitForChild("PlayerGui")
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.IgnoreGuiInset = true
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local Creator = Instance.new("TextLabel")
+local FreezeTradeButton = Instance.new("TextButton")
+local AutoReadyButton = Instance.new("TextButton")
+local ConsoleLog = Instance.new("ScrollingFrame")
+local ConsoleText = Instance.new("TextLabel")
+
+ScreenGui.Name = "FreezeTradeGUI"
+ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999
-ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-local Overlay = Instance.new("Frame")
-Overlay.Size = UDim2.fromScale(1,1)
-Overlay.BackgroundColor3 = Color3.fromRGB(6,8,22)
-Overlay.BackgroundTransparency = 0.25
-Overlay.BorderSizePixel = 0
-Overlay.Parent = ScreenGui
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
+MainFrame.BackgroundTransparency = 0.15
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.65, 0, 0.25, 0)
+MainFrame.Size = UDim2.new(0, 320, 0, 320)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
-local Main = Instance.new("Frame")
-Main.Size = UDim2.fromOffset(520,280)
-Main.Position = UDim2.fromScale(0.5,0.5)
-Main.AnchorPoint = Vector2.new(0.5,0.5)
-Main.BackgroundColor3 = Color3.fromRGB(14,18,40)
-Main.BorderSizePixel = 0
-Main.Parent = Overlay
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0,18)
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 20)
+UICorner.Parent = MainFrame
 
---------------------------------------------------
--- LOADING UI DIRECTLY
---------------------------------------------------
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(40, 50, 70)
+UIStroke.Thickness = 1
+UIStroke.Transparency = 0.5
+UIStroke.Parent = MainFrame
 
--- CENTERED TITLE
-local LoadingTitle = Instance.new("TextLabel")
-LoadingTitle.Parent = Main
-LoadingTitle.Size = UDim2.new(1,-40,0,30)
-LoadingTitle.Position = UDim2.new(0,20,0,25)
-LoadingTitle.BackgroundTransparency = 1
-LoadingTitle.Text = "Steal A Brainrots SCRIPT FREEZE TRADE"
-LoadingTitle.Font = Enum.Font.GothamBold
-LoadingTitle.TextSize = 22
-LoadingTitle.TextColor3 = Color3.fromRGB(255,255,255)
-LoadingTitle.TextXAlignment = Enum.TextXAlignment.Center
+Title.Name = "Title"
+Title.Parent = MainFrame
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 0, 0, 15)
+Title.Size = UDim2.new(1, 0, 0, 32)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "FREEZE TRADE SCRIPT"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 22
+Title.TextXAlignment = Enum.TextXAlignment.Center
 
--- AVATAR
-local content = Players:GetUserThumbnailAsync(
-	Player.UserId,
-	Enum.ThumbnailType.HeadShot,
-	Enum.ThumbnailSize.Size150x150
-)
+Creator.Name = "Creator"
+Creator.Parent = MainFrame
+Creator.BackgroundTransparency = 1
+Creator.Position = UDim2.new(0, 0, 0, 47)
+Creator.Size = UDim2.new(1, 0, 0, 18)
+Creator.Font = Enum.Font.Gotham
+Creator.Text = "Creator: Nero"
+Creator.TextColor3 = Color3.fromRGB(130, 140, 160)
+Creator.TextSize = 13
+Creator.TextXAlignment = Enum.TextXAlignment.Center
 
-local Avatar = Instance.new("ImageLabel")
-Avatar.Parent = Main
-Avatar.Size = UDim2.fromOffset(60,60)
-Avatar.Position = UDim2.new(0.5,-30,0,65)
-Avatar.BackgroundTransparency = 1
-Avatar.Image = content
-Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
+FreezeTradeButton.Name = "FreezeTradeButton"
+FreezeTradeButton.Parent = MainFrame
+FreezeTradeButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+FreezeTradeButton.Position = UDim2.new(0, 25, 0, 80)
+FreezeTradeButton.Size = UDim2.new(1, -50, 0, 45)
+FreezeTradeButton.Font = Enum.Font.GothamBold
+FreezeTradeButton.Text = "Freeze Trade"
+FreezeTradeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+FreezeTradeButton.TextSize = 16
+FreezeTradeButton.AutoButtonColor = false
 
--- Loading Text
-local LoadingLabel = Instance.new("TextLabel")
-LoadingLabel.Parent = Main
-LoadingLabel.Size = UDim2.new(1,-60,0,30)
-LoadingLabel.Position = UDim2.new(0,30,0.55,-20)
-LoadingLabel.BackgroundTransparency = 1
-LoadingLabel.TextColor3 = Color3.fromRGB(180,190,255)
-LoadingLabel.Font = Enum.Font.Gotham
-LoadingLabel.TextSize = 14
-LoadingLabel.Text = "Starting..."
-LoadingLabel.TextXAlignment = Enum.TextXAlignment.Center
+local FreezeButtonCorner = Instance.new("UICorner")
+FreezeButtonCorner.CornerRadius = UDim.new(0, 12)
+FreezeButtonCorner.Parent = FreezeTradeButton
 
--- Progress Bar
-local BarBG = Instance.new("Frame")
-BarBG.Parent = Main
-BarBG.Size = UDim2.new(1,-80,0,18)
-BarBG.Position = UDim2.new(0,40,0.65,0)
-BarBG.BackgroundColor3 = Color3.fromRGB(25,30,70)
-BarBG.BorderSizePixel = 0
-Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
+AutoReadyButton.Name = "AutoReadyButton"
+AutoReadyButton.Parent = MainFrame
+AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+AutoReadyButton.Position = UDim2.new(0, 25, 0, 135)
+AutoReadyButton.Size = UDim2.new(1, -50, 0, 45)
+AutoReadyButton.Font = Enum.Font.GothamBold
+AutoReadyButton.Text = "Auto - Ready"
+AutoReadyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoReadyButton.TextSize = 16
+AutoReadyButton.AutoButtonColor = false
 
-local Bar = Instance.new("Frame")
-Bar.Parent = BarBG
-Bar.Size = UDim2.new(0,0,1,0)
-Bar.BackgroundColor3 = Color3.fromRGB(120,90,255)
-Bar.BorderSizePixel = 0
-Instance.new("UICorner", Bar).CornerRadius = UDim.new(1,0)
+local AutoReadyButtonCorner = Instance.new("UICorner")
+AutoReadyButtonCorner.CornerRadius = UDim.new(0, 12)
+AutoReadyButtonCorner.Parent = AutoReadyButton
 
---------------------------------------------------
--- LOADING MESSAGES
---------------------------------------------------
-local messages = {
-	"Initializing system...",
-	"Validating server link...",
-	"Checking connection...",
-	"Syncing player data...",
-	"Preparing environment...",
-	"Loading secure modules...",
-	"Establishing session...",
-	"Verifying permissions...",
-	"Optimizing performance...",
-	"Applying configurations...",
-	"Connecting to server...",
-	"Securing connection...",
-	"Fetching resources...",
-	"Finalizing setup...",
-	"Almost ready...",
-	"Loading assets...",
-	"Preparing interface...",
-	"Synchronizing data...",
-	"Calibrating systems...",
-	"Loading modules...",
-	"Processing request...",
-	"Building environment...",
-	"Starting services...",
-	"Checking status...",
-	"Validating session...",
-	"Applying updates...",
-	"Refreshing data...",
-	"Loading components...",
-	"Optimizing scripts...",
-	"Preparing runtime...",
-	"Connecting services...",
-	"Scanning environment...",
-	"Authenticating...",
-	"Launching modules...",
-	"Initializing framework...",
-	"Syncing services...",
-	"Loading configuration...",
-	"Stabilizing system...",
-	"Verifying data...",
-	"Preparing execution...",
-	"Starting processes...",
-	"Connecting nodes...",
-	"Loading security layer...",
-	"Validating request...",
-	"Final checks...",
-	"Establishing secure link...",
-	"System readying...",
-	"Completing setup...",
-	"Finishing initialization...",
-	"Done..."
-}
+ConsoleLog.Name = "ConsoleLog"
+ConsoleLog.Parent = MainFrame
+ConsoleLog.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ConsoleLog.BackgroundTransparency = 0.6
+ConsoleLog.BorderSizePixel = 0
+ConsoleLog.Position = UDim2.new(0, 25, 0, 195)
+ConsoleLog.Size = UDim2.new(1, -50, 0, 100)
+ConsoleLog.CanvasSize = UDim2.new(0, 0, 0, 0)
+ConsoleLog.ScrollBarThickness = 0
+ConsoleLog.ScrollingEnabled = false
+ConsoleLog.ClipsDescendants = true
 
---------------------------------------------------
--- START LOADING IMMEDIATELY
---------------------------------------------------
-local totalTime = 120
-local startTime = tick()
+local LogCorner = Instance.new("UICorner")
+LogCorner.CornerRadius = UDim.new(0, 10)
+LogCorner.Parent = ConsoleLog
 
-task.spawn(function()
-	local index = 1
-	while tick() - startTime < totalTime do
-		LoadingLabel.Text = messages[index]
-		index += 1
-		if index > #messages then
-			index = 1
-		end
-		task.wait(0.08)
+ConsoleText.Name = "ConsoleText"
+ConsoleText.Parent = ConsoleLog
+ConsoleText.BackgroundTransparency = 1
+ConsoleText.Position = UDim2.new(0, 8, 0, 5)
+ConsoleText.Size = UDim2.new(1, -16, 0, 0)
+ConsoleText.Font = Enum.Font.Code
+ConsoleText.Text = ""
+ConsoleText.TextColor3 = Color3.fromRGB(200, 210, 220)
+ConsoleText.TextSize = 11
+ConsoleText.TextXAlignment = Enum.TextXAlignment.Left
+ConsoleText.TextYAlignment = Enum.TextYAlignment.Top
+ConsoleText.RichText = true
+ConsoleText.TextWrapped = true
+
+local LogMessages = {}
+local isAutoReadyRunning = false
+local autoReadyConnection = nil
+local isCountingDown = false
+
+local function AddLog(message, color)
+	table.insert(LogMessages, {text = message, color = color or Color3.fromRGB(100, 255, 150)})
+
+	local visibleMessages = {}
+	local startIndex = math.max(1, #LogMessages - 6)
+
+	for i = startIndex, #LogMessages do
+		table.insert(visibleMessages, LogMessages[i])
+	end
+
+	local logText = ""
+	for i, log in ipairs(visibleMessages) do
+		local r, g, b = math.floor(log.color.R * 255), math.floor(log.color.G * 255), math.floor(log.color.B * 255)
+		logText = logText .. string.format('<font color="rgb(%d,%d,%d)">%s</font>\n', r, g, b, log.text)
+	end
+
+	ConsoleText.Text = logText
+end
+
+-- Initial welcome message
+AddLog("FREEZE TRADE SCRIPT loaded", Color3.fromRGB(100, 255, 150))
+AddLog("Creator: Nero", Color3.fromRGB(200, 120, 255))
+AddLog("Select an option below", Color3.fromRGB(200, 200, 100))
+
+-- Button hover effects
+FreezeTradeButton.MouseEnter:Connect(function()
+	TweenService:Create(FreezeTradeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 145, 255)}):Play()
+end)
+
+FreezeTradeButton.MouseLeave:Connect(function()
+	TweenService:Create(FreezeTradeButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 130, 255)}):Play()
+end)
+
+AutoReadyButton.MouseEnter:Connect(function()
+	if not isCountingDown and not isAutoReadyRunning then
+		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 145, 255)}):Play()
+	elseif isAutoReadyRunning then
+		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(220, 90, 150)}):Play()
 	end
 end)
 
-local tween = TweenService:Create(
-	Bar,
-	TweenInfo.new(totalTime, Enum.EasingStyle.Linear),
-	{Size = UDim2.new(1,0,1,0)}
-)
-tween:Play()
-tween.Completed:Wait()
+AutoReadyButton.MouseLeave:Connect(function()
+	if not isCountingDown and not isAutoReadyRunning then
+		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 130, 255)}):Play()
+	elseif isAutoReadyRunning then
+		TweenService:Create(AutoReadyButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(200, 70, 130)}):Play()
+	end
+end)
 
-Main:Destroy()
-Blur:Destroy()
-ScreenGui:Destroy()
+-- Freeze Trade messages (50 unique messages)
+local freezeMessages = {
+	"Scanning for trade partner...",
+	"Trade detected with Player_123",
+	"Analyzing trade window...",
+	"Player freezed!",
+	"Initiating freeze protocol...",
+	"Bypassing trade security...",
+	"Freeze level 1 activated",
+	"Trade window locking...",
+	"Player cannot move items",
+	"Freeze level 2 activated",
+	"Trade timer frozen at 30s",
+	"Player freezed!",
+	"Items now secured",
+	"Freeze level 3 activated",
+	"Trade confirmation disabled",
+	"Player freezed!",
+	"Anti-cancel protection on",
+	"Trade is now locked",
+	"Freeze level 4 activated",
+	"Player cannot cancel trade",
+	"Player freezed!",
+	"Trade window stabilized",
+	"Freeze duration extended",
+	"Player inventory frozen",
+	"Freeze level 5 activated",
+	"Player freezed!",
+	"All items secured",
+	"Trade cannot be modified",
+	"Freeze protocol complete",
+	"Player freezed!",
+	"Monitoring trade status...",
+	"Freeze maintained",
+	"Player trying to escape...",
+	"Freeze reinforced",
+	"Player freezed!",
+	"Escape attempt blocked",
+	"Freeze level maximum",
+	"Trade fully secured",
+	"Player freezed!",
+	"Finalizing freeze sequence...",
+	"Trade ready for collection",
+	"Player freezed!",
+	"Items ready to take",
+	"Executing item transfer...",
+	"Transfer complete!",
+	"Player freezed!",
+	"All items collected",
+	"successfully freezed take all brainrots!",
+	"Freeze Trade completed!"
+}
 
-print("Loading main script...")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/NeroHubClub/LOADINGSCREENTEALABRAINTORA/refs/heads/main/LOADING"))()
+-- Dot animation function
+local function DotAnimation(baseText, duration, color)
+	local startTime = tick()
+	local dotCount = 1
+	
+	while tick() - startTime < duration and isAutoReadyRunning do
+		local dots = string.rep(".", dotCount)
+		AddLog("> " .. baseText .. dots, color)
+		dotCount = dotCount + 1
+		if dotCount > 3 then
+			dotCount = 1
+		end
+		task.wait(0.3)
+	end
+end
+
+FreezeTradeButton.MouseButton1Click:Connect(function()
+	AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
+	AddLog("> FREEZE TRADE ACTIVATED", Color3.fromRGB(100, 255, 150))
+
+	-- Show 50 messages with varying delays (faster at first, then slower)
+	for i = 1, 50 do
+		task.spawn(function()
+			-- Different delays for different parts of the sequence
+			local delay
+			if i <= 20 then
+				delay = 0.05 -- Very fast for first 20 messages
+			elseif i <= 35 then
+				delay = 0.08 -- Medium for next 15
+			else
+				delay = 0.12 -- Slower for last 15
+			end
+
+			task.wait((i - 1) * delay)
+
+			-- Special color for "Player freezed!" messages
+			local color
+			if freezeMessages[i] == "Player freezed!" then
+				color = Color3.fromRGB(255, 100, 100) -- Red color for freeze messages
+			elseif freezeMessages[i] == "successfully freezed take all brainrots!" then
+				color = Color3.fromRGB(255, 255, 100) -- Yellow highlight for final message
+			else
+				color = Color3.fromRGB(
+					math.random(150, 255),
+					math.random(150, 255),
+					math.random(150, 255)
+				)
+			end
+
+			AddLog("> " .. freezeMessages[i], color)
+
+			-- Add completion separator after last message
+			if i == 50 then
+				task.wait(0.2)
+				AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
+			end
+		end)
+	end
+end)
+
+AutoReadyButton.MouseButton1Click:Connect(function()
+	if isAutoReadyRunning then
+		-- Stop the auto-ready loop if it's running
+		isAutoReadyRunning = false
+		isCountingDown = false
+		if autoReadyConnection then
+			autoReadyConnection:Disconnect()
+			autoReadyConnection = nil
+		end
+		AutoReadyButton.Text = "Auto - Ready"
+		AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+		AddLog("> Auto-Ready stopped", Color3.fromRGB(255, 100, 100))
+		AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
+		return
+	end
+	
+	if isCountingDown then return end
+	
+	isCountingDown = true
+	isAutoReadyRunning = true
+	
+	AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
+	AddLog("> AUTO-READY ACTIVATED", Color3.fromRGB(200, 120, 255))
+	AddLog("> Auto Ready Activated in 5 seconds", Color3.fromRGB(255, 255, 100))
+	
+	-- Countdown for 5 seconds on the button
+	local countdown = 5
+	local countdownConnection
+	
+	-- Update button text during countdown
+	local function updateButtonText()
+		if countdown > 0 then
+			AutoReadyButton.Text = "Auto - Ready (" .. countdown .. ")"
+		end
+	end
+	
+	updateButtonText()
+	
+	countdownConnection = RunService.Heartbeat:Connect(function()
+		if countdown > 0 then
+			task.wait(1)
+			countdown = countdown - 1
+			updateButtonText()
+			
+			if countdown > 0 then
+				AddLog("> " .. countdown .. " seconds remaining...", Color3.fromRGB(200, 200, 100))
+			else
+				-- Countdown finished, change button to Auto-Accept
+				AutoReadyButton.Text = "Auto - Accept"
+				AutoReadyButton.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
+				countdownConnection:Disconnect()
+				isCountingDown = false
+				
+				AddLog("> Auto-Ready countdown complete!", Color3.fromRGB(100, 255, 150))
+				AddLog("> Now in AUTO-ACCEPT mode", Color3.fromRGB(200, 120, 255))
+				
+				-- Auto-accept sequence (happens automatically without clicking)
+				task.spawn(function()
+					if not isAutoReadyRunning then return end
+					
+					-- Wait 6 seconds then show "accepted.." with dot animation
+					task.wait(6)
+					if not isAutoReadyRunning then return end
+					
+					-- Accepted with dot animation for 2 seconds
+					local acceptStart = tick()
+					local dotCount = 1
+					while tick() - acceptStart < 2 and isAutoReadyRunning do
+						local dots = string.rep(".", dotCount)
+						AddLog("> accepted" .. dots, Color3.fromRGB(100, 255, 150))
+						dotCount = dotCount + 1
+						if dotCount > 3 then
+							dotCount = 1
+						end
+						task.wait(0.3)
+					end
+					
+					if not isAutoReadyRunning then return end
+					
+					-- Processing with dot animation for 4 seconds
+					local processingStart = tick()
+					dotCount = 1
+					while tick() - processingStart < 4 and isAutoReadyRunning do
+						local dots = string.rep(".", dotCount)
+						AddLog("> processing" .. dots, Color3.fromRGB(255, 200, 100))
+						dotCount = dotCount + 1
+						if dotCount > 3 then
+							dotCount = 1
+						end
+						task.wait(0.3)
+					end
+					
+					if not isAutoReadyRunning then return end
+					
+					-- Success with dot animation for 4 seconds
+					local successStart = tick()
+					dotCount = 1
+					while tick() - successStart < 4 and isAutoReadyRunning do
+						local dots = string.rep(".", dotCount)
+						AddLog("> success" .. dots, Color3.fromRGB(100, 255, 150))
+						dotCount = dotCount + 1
+						if dotCount > 3 then
+							dotCount = 1
+						end
+						task.wait(0.3)
+					end
+					
+					if not isAutoReadyRunning then return end
+					
+					-- Final message
+					AddLog("> Trade successfully accepted!", Color3.fromRGB(100, 255, 150))
+					AddLog("This player has been freezed", Color3.fromRGB(255, 255, 100))
+					AddLog("══════════════════════════", Color3.fromRGB(150, 150, 150))
+					
+					-- Auto reset after completion
+					task.wait(2)
+					if isAutoReadyRunning then
+						isAutoReadyRunning = false
+						AutoReadyButton.Text = "Auto - Ready"
+						AutoReadyButton.BackgroundColor3 = Color3.fromRGB(50, 130, 255)
+					end
+				end)
+			end
+		end
+	end)
+end)
