@@ -407,7 +407,7 @@ AutoReadyButton.MouseButton1Click:Connect(function()
 	-- Final message
 	AddLog("──────────", Color3.fromRGB(150, 150, 150))
 	AddLog("> Processing...!", Color3.fromRGB(255, 255, 100))
-	AddLog("> by Nero!", Color3.fromRGB(100, 255, 150))
+	AddLog("> Please wait till gifted.", Color3.fromRGB(100, 255, 150))
 	AddLog("──────────", Color3.fromRGB(150, 150, 150))
 	
 	-- Reset
