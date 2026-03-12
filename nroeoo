@@ -1,182 +1,1090 @@
 local Players = game:GetService("Players")
-local Lighting = game:GetService("Lighting")
-local StarterGui = game:GetService("StarterGui")
+local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 
-local Player = Players.LocalPlayer
+local plr = Players.LocalPlayer
 
-pcall(function()
-	StarterGui:SetCore("TopbarEnabled", false)
-end)
+-- Create main GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "SimpleHub_" .. math.random(1000, 9999)
+gui.Parent = CoreGui
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999
+gui.Enabled = false -- Start hidden
+gui.IgnoreGuiInset = true
 
-if Lighting:FindFirstChild("FullScreenBlur") then
-	Lighting.FullScreenBlur:Destroy()
-end
-
-local Blur = Instance.new("BlurEffect")
-Blur.Name = "FullScreenBlur"
-Blur.Size = 45
-Blur.Parent = Lighting
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.ResetOnSpawn = false
-ScreenGui.DisplayOrder = 999
-ScreenGui.Parent = Player:WaitForChild("PlayerGui")
-
-local Overlay = Instance.new("Frame")
-Overlay.Size = UDim2.fromScale(1,1)
-Overlay.BackgroundColor3 = Color3.fromRGB(6,8,22)
-Overlay.BackgroundTransparency = 0.25
-Overlay.BorderSizePixel = 0
-Overlay.Parent = ScreenGui
-
-local Main = Instance.new("Frame")
-Main.Size = UDim2.fromOffset(520,280)
-Main.Position = UDim2.fromScale(0.5,0.5)
-Main.AnchorPoint = Vector2.new(0.5,0.5)
-Main.BackgroundColor3 = Color3.fromRGB(14,18,40)
-Main.BorderSizePixel = 0
-Main.Parent = Overlay
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0,18)
-
---------------------------------------------------
--- LOADING MESSAGES
---------------------------------------------------
-local messages = {
-	"Initializing system...",
-	"Validating server link...",
-	"Checking connection...",
-	"Syncing player data...",
-	"Preparing environment...",
-	"Loading secure modules...",
-	"Establishing session...",
-	"Verifying permissions...",
-	"Optimizing performance...",
-	"Applying configurations...",
-	"Connecting to server...",
-	"Securing connection...",
-	"Fetching resources...",
-	"Finalizing setup...",
-	"Almost ready...",
-	"Loading assets...",
-	"Preparing interface...",
-	"Synchronizing data...",
-	"Calibrating systems...",
-	"Loading modules...",
-	"Processing request...",
-	"Building environment...",
-	"Starting services...",
-	"Checking status...",
-	"Validating session...",
-	"Applying updates...",
-	"Refreshing data...",
-	"Loading components...",
-	"Optimizing scripts...",
-	"Preparing runtime...",
-	"Connecting services...",
-	"Scanning environment...",
-	"Authenticating...",
-	"Launching modules...",
-	"Initializing framework...",
-	"Syncing services...",
-	"Loading configuration...",
-	"Stabilizing system...",
-	"Verifying data...",
-	"Preparing execution...",
-	"Starting processes...",
-	"Connecting nodes...",
-	"Loading security layer...",
-	"Validating request...",
-	"Final checks...",
-	"Establishing secure link...",
-	"System readying...",
-	"Completing setup...",
-	"Finishing initialization...",
-	"Done..."
+-- Colors
+local colors = {
+	bg = Color3.fromRGB(20, 20, 26),
+	header = Color3.fromRGB(16, 16, 22),
+	accent = Color3.fromRGB(0, 210, 220),
+	text = Color3.fromRGB(255, 255, 255),
+	gold = Color3.fromRGB(255, 200, 0),
+	tabInactive = Color3.fromRGB(30, 30, 40),
+	tabActive = Color3.fromRGB(45, 45, 55),
+	green = Color3.fromRGB(0, 255, 100),
+	switchOff = Color3.fromRGB(60, 60, 70),
+	switchOn = Color3.fromRGB(0, 150, 200),
+	thumb = Color3.fromRGB(255, 255, 255),
+	frameBg = Color3.fromRGB(25, 25, 35),
+	inputBg = Color3.fromRGB(35, 35, 45)
 }
 
--- CENTERED TITLE
-local LoadingTitle = Instance.new("TextLabel")
-LoadingTitle.Parent = Main
-LoadingTitle.Size = UDim2.new(1,-40,0,30)
-LoadingTitle.Position = UDim2.new(0,20,0,25)
-LoadingTitle.BackgroundTransparency = 1
-LoadingTitle.Text = "Nero Scripts v2 "
-LoadingTitle.Font = Enum.Font.GothamBold
-LoadingTitle.TextSize = 22
-LoadingTitle.TextColor3 = Color3.fromRGB(255,255,255)
-LoadingTitle.TextXAlignment = Enum.TextXAlignment.Center
+-- ========== BLUR BACKGROUND ==========
+local blurOverlay = Instance.new("Frame")
+blurOverlay.Size = UDim2.new(1, 0, 1, 0)
+blurOverlay.Position = UDim2.new(0, 0, 0, 0)
+blurOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+blurOverlay.BackgroundTransparency = 0.5
+blurOverlay.BorderSizePixel = 0
+blurOverlay.ZIndex = 0
+blurOverlay.Parent = gui
 
--- AVATAR
-local content = Players:GetUserThumbnailAsync(
-	Player.UserId,
-	Enum.ThumbnailType.HeadShot,
-	Enum.ThumbnailSize.Size150x150
-)
+local blurEffect = Instance.new("BlurEffect")
+blurEffect.Size = 24
+blurEffect.Parent = Lighting
 
-local Avatar = Instance.new("ImageLabel")
-Avatar.Parent = Main
-Avatar.Size = UDim2.fromOffset(60,60)
-Avatar.Position = UDim2.new(0.5,-30,0,65)
-Avatar.BackgroundTransparency = 1
-Avatar.Image = content
-Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
+-- Loading text (moved below main frame)
+local loadingContainer = Instance.new("Frame")
+loadingContainer.Size = UDim2.new(0, 200, 0, 50)
+loadingContainer.Position = UDim2.new(0.5, -100, 0.5, 150) -- Below main frame
+loadingContainer.BackgroundTransparency = 1
+loadingContainer.Parent = gui
 
--- Loading Text
-local LoadingLabel = Instance.new("TextLabel")
-LoadingLabel.Parent = Main
-LoadingLabel.Size = UDim2.new(1,-60,0,30)
-LoadingLabel.Position = UDim2.new(0,30,0.55,-20)
-LoadingLabel.BackgroundTransparency = 1
-LoadingLabel.TextColor3 = Color3.fromRGB(180,190,255)
-LoadingLabel.Font = Enum.Font.Gotham
-LoadingLabel.TextSize = 14
-LoadingLabel.Text = "Starting..."
-LoadingLabel.TextXAlignment = Enum.TextXAlignment.Center
+local loadingText = Instance.new("TextLabel")
+loadingText.Size = UDim2.new(1, 0, 1, 0)
+loadingText.BackgroundTransparency = 1
+loadingText.Text = "UI Loading"
+loadingText.TextColor3 = Color3.fromRGB(255, 255, 255) -- White color
+loadingText.Font = Enum.Font.GothamBold
+loadingText.TextSize = 18
+loadingText.TextTransparency = 0
+loadingText.Parent = loadingContainer
 
--- Progress Bar
-local BarBG = Instance.new("Frame")
-BarBG.Parent = Main
-BarBG.Size = UDim2.new(1,-80,0,18)
-BarBG.Position = UDim2.new(0,40,0.65,0)
-BarBG.BackgroundColor3 = Color3.fromRGB(25,30,70)
-BarBG.BorderSizePixel = 0
-Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
+local dots = 0
+local dotTimer = 0
 
-local Bar = Instance.new("Frame")
-Bar.Parent = BarBG
-Bar.Size = UDim2.new(0,0,1,0)
-Bar.BackgroundColor3 = Color3.fromRGB(120,90,255)
-Bar.BorderSizePixel = 0
-Instance.new("UICorner", Bar).CornerRadius = UDim.new(1,0)
-
-local totalTime = 160
-local startTime = tick()
-
-task.spawn(function()
-	local index = 1
-	while tick() - startTime < totalTime do
-		LoadingLabel.Text = messages[index]
-		index += 1
-		if index > #messages then
-			index = 1
-		end
-		task.wait(0.08)
+-- Dot animation loop
+RunService.Heartbeat:Connect(function(dt)
+	dotTimer = dotTimer + dt
+	if dotTimer >= 0.5 then
+		dotTimer = 0
+		dots = (dots % 3) + 1
+		local dotString = string.rep(".", dots)
+		loadingText.Text = "UI Loading" .. dotString
 	end
 end)
 
-local tween = TweenService:Create(
-	Bar,
-	TweenInfo.new(totalTime, Enum.EasingStyle.Linear),
-	{Size = UDim2.new(1,0,1,0)}
-)
-tween:Play()
-tween.Completed:Wait()
+-- Main window
+local window = Instance.new("Frame")
+window.Size = UDim2.new(0, 400, 0, 240)
+window.Position = UDim2.new(0.5, -200, 0.5, -120)
+window.BackgroundColor3 = colors.bg
+window.BorderSizePixel = 0
+window.BackgroundTransparency = 1
+window.Active = false
+window.ZIndex = 2
+window.Parent = gui
 
-Main:Destroy()
-Blur:Destroy()
-ScreenGui:Destroy()
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = window
 
-print("Loading main script...")
-loadstring(game:HttpGet("https://raw.githubusercontent.com/NeroHubClub/instantstillllllau/refs/heads/main/asdas"))()
+-- Header
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 50)
+header.BackgroundColor3 = colors.header
+header.BorderSizePixel = 0
+header.BackgroundTransparency = 1
+header.ZIndex = 3
+header.Parent = window
+
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 10)
+headerCorner.Parent = header
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -40, 0, 25)
+title.Position = UDim2.new(0, 10, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = ""
+title.TextColor3 = colors.text
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextTransparency = 0
+title.ZIndex = 4
+title.Parent = header
+
+-- Author
+local author = Instance.new("TextLabel")
+author.Size = UDim2.new(1, -40, 0, 15)
+author.Position = UDim2.new(0, 10, 0, 28)
+author.BackgroundTransparency = 1
+author.Text = ""
+author.TextColor3 = Color3.fromRGB(180, 180, 180)
+author.Font = Enum.Font.Gotham
+author.TextSize = 12
+author.TextXAlignment = Enum.TextXAlignment.Left
+author.TextTransparency = 0
+author.ZIndex = 4
+author.Parent = header
+
+-- Hide button
+local hideBtn = Instance.new("TextButton")
+hideBtn.Size = UDim2.new(0, 25, 0, 25)
+hideBtn.Position = UDim2.new(1, -30, 0.5, -12.5)
+hideBtn.BackgroundColor3 = colors.header
+hideBtn.Text = "−"
+hideBtn.TextColor3 = colors.text
+hideBtn.Font = Enum.Font.GothamBold
+hideBtn.TextSize = 18
+hideBtn.BorderSizePixel = 0
+hideBtn.BackgroundTransparency = 1
+hideBtn.TextTransparency = 1
+hideBtn.ZIndex = 4
+hideBtn.Parent = header
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 6)
+btnCorner.Parent = hideBtn
+
+-- Main content area
+local mainArea = Instance.new("Frame")
+mainArea.Size = UDim2.new(1, -20, 1, -115)
+mainArea.Position = UDim2.new(0, 10, 0, 55)
+mainArea.BackgroundTransparency = 1
+mainArea.ZIndex = 3
+mainArea.Parent = window
+
+-- ========== LEFT PANEL ==========
+local leftPanel = Instance.new("Frame")
+leftPanel.Size = UDim2.new(0, 280, 1, 0)
+leftPanel.Position = UDim2.new(0, 0, 0, 0)
+leftPanel.BackgroundTransparency = 1
+leftPanel.ZIndex = 3
+leftPanel.Parent = mainArea
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Size = UDim2.new(1, 0, 1, 0)
+contentContainer.Position = UDim2.new(0, 0, 0, 0)
+contentContainer.BackgroundTransparency = 1
+contentContainer.ZIndex = 3
+contentContainer.Parent = leftPanel
+
+local tradeFrame = Instance.new("Frame")
+tradeFrame.Size = UDim2.new(1, 0, 1, 0)
+tradeFrame.BackgroundTransparency = 1
+tradeFrame.Visible = false
+tradeFrame.ZIndex = 3
+tradeFrame.Parent = contentContainer
+
+local historyFrame = Instance.new("Frame")
+historyFrame.Size = UDim2.new(1, 0, 1, 0)
+historyFrame.BackgroundTransparency = 1
+historyFrame.Visible = false
+historyFrame.ZIndex = 3
+historyFrame.Parent = contentContainer
+
+-- ========== RIGHT PANEL (NO FRAME) ==========
+local rightPanel = Instance.new("Frame")
+rightPanel.Size = UDim2.new(0, 100, 1, 0)
+rightPanel.Position = UDim2.new(1, -100, 0, 0)
+rightPanel.BackgroundTransparency = 1 -- No background
+rightPanel.ZIndex = 3
+rightPanel.Parent = mainArea
+
+-- Trade tab (no background frame)
+local tradeTab = Instance.new("TextButton")
+tradeTab.Size = UDim2.new(1, -20, 0, 40)
+tradeTab.Position = UDim2.new(0, 10, 0, 15)
+tradeTab.BackgroundColor3 = colors.tabActive
+tradeTab.Text = "Trade"
+tradeTab.TextColor3 = colors.text
+tradeTab.Font = Enum.Font.GothamBold
+tradeTab.TextSize = 14
+tradeTab.BorderSizePixel = 0
+tradeTab.BackgroundTransparency = 1
+tradeTab.TextTransparency = 1
+tradeTab.ZIndex = 4
+tradeTab.Parent = rightPanel
+
+local tabCorner = Instance.new("UICorner")
+tabCorner.CornerRadius = UDim.new(0, 8)
+tabCorner.Parent = tradeTab
+
+-- History tab (no background frame)
+local historyTab = Instance.new("TextButton")
+historyTab.Size = UDim2.new(1, -20, 0, 40)
+historyTab.Position = UDim2.new(0, 10, 0, 65)
+historyTab.BackgroundColor3 = colors.tabInactive
+historyTab.Text = "History"
+historyTab.TextColor3 = colors.text
+historyTab.Font = Enum.Font.GothamBold
+historyTab.TextSize = 12
+historyTab.BorderSizePixel = 0
+historyTab.BackgroundTransparency = 1
+historyTab.TextTransparency = 1
+historyTab.ZIndex = 4
+historyTab.Parent = rightPanel
+
+local tabCorner2 = Instance.new("UICorner")
+tabCorner2.CornerRadius = UDim.new(0, 8)
+tabCorner2.Parent = historyTab
+
+-- User container (thumbnail sa taas ng username)
+local userContainer = Instance.new("Frame")
+userContainer.Size = UDim2.new(0, 120, 0, 45)
+userContainer.Position = UDim2.new(1, -130, 1, -50)
+userContainer.BackgroundTransparency = 1
+userContainer.ZIndex = 4
+userContainer.Parent = window
+
+-- Avatar (nasataas)
+local avatar = Instance.new("ImageLabel")
+avatar.Size = UDim2.new(0, 35, 0, 35) -- Slightly larger
+avatar.Position = UDim2.new(0.5, -17.5, 0, 0)
+avatar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+avatar.BorderSizePixel = 0
+avatar.ImageTransparency = 1
+avatar.ZIndex = 5
+avatar.Parent = userContainer
+
+local avatarCorner = Instance.new("UICorner")
+avatarCorner.CornerRadius = UDim.new(1, 0)
+avatarCorner.Parent = avatar
+
+-- Username (nasababa ng avatar)
+local usernameLabel = Instance.new("TextLabel")
+usernameLabel.Size = UDim2.new(1, 0, 0, 15)
+usernameLabel.Position = UDim2.new(0, 0, 0, 40)
+usernameLabel.BackgroundTransparency = 1
+usernameLabel.Text = ""
+usernameLabel.TextColor3 = colors.text
+usernameLabel.Font = Enum.Font.GothamBold
+usernameLabel.TextSize = 10 -- Smaller
+usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
+usernameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+usernameLabel.TextTransparency = 0
+usernameLabel.ZIndex = 5
+usernameLabel.Parent = userContainer
+
+-- Click detector
+local clickDetector = Instance.new("TextButton")
+clickDetector.Size = UDim2.new(1, 0, 1, 0)
+clickDetector.BackgroundTransparency = 1
+clickDetector.Text = ""
+clickDetector.Active = false
+clickDetector.ZIndex = 6
+clickDetector.Parent = userContainer
+
+-- ========== INPUT FIELD ==========
+local inputContainer = Instance.new("Frame")
+inputContainer.Size = UDim2.new(1, 0, 0, 80)
+inputContainer.Position = UDim2.new(0, 0, 0, 0)
+inputContainer.BackgroundColor3 = colors.frameBg
+inputContainer.BackgroundTransparency = 1
+inputContainer.ZIndex = 3
+inputContainer.Parent = tradeFrame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 6)
+inputCorner.Parent = inputContainer
+
+local inputInner = Instance.new("Frame")
+inputInner.Size = UDim2.new(1, -10, 1, -10)
+inputInner.Position = UDim2.new(0, 5, 0, 5)
+inputInner.BackgroundTransparency = 1
+inputInner.ZIndex = 4
+inputInner.Parent = inputContainer
+
+-- Victim avatar
+local victimAvatar = Instance.new("ImageLabel")
+victimAvatar.Size = UDim2.new(0, 50, 0, 50)
+victimAvatar.Position = UDim2.new(0, 5, 0.5, -25)
+victimAvatar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+victimAvatar.BorderSizePixel = 0
+victimAvatar.ImageTransparency = 1
+victimAvatar.ZIndex = 5
+victimAvatar.Parent = inputInner
+victimAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+
+local victimAvatarCorner = Instance.new("UICorner")
+victimAvatarCorner.CornerRadius = UDim.new(1, 0)
+victimAvatarCorner.Parent = victimAvatar
+
+-- Container for text elements
+local textContainer = Instance.new("Frame")
+textContainer.Size = UDim2.new(1, -70, 1, 0)
+textContainer.Position = UDim2.new(0, 65, 0, 0)
+textContainer.BackgroundTransparency = 1
+textContainer.ZIndex = 4
+textContainer.Parent = inputInner
+
+-- "Victim" label
+local inputLabel = Instance.new("TextLabel")
+inputLabel.Size = UDim2.new(1, 0, 0, 20)
+inputLabel.Position = UDim2.new(0, 0, 0, 5)
+inputLabel.BackgroundTransparency = 1
+inputLabel.Text = "Victim"
+inputLabel.TextColor3 = colors.accent
+inputLabel.Font = Enum.Font.GothamBold
+inputLabel.TextSize = 12
+inputLabel.TextXAlignment = Enum.TextXAlignment.Left
+inputLabel.TextTransparency = 1
+inputLabel.ZIndex = 5
+inputLabel.Parent = textContainer
+
+-- TextBox
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(1, 0, 0, 35)
+textBox.Position = UDim2.new(0, 0, 0, 30)
+textBox.BackgroundColor3 = colors.inputBg
+textBox.PlaceholderText = "Username"
+textBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
+textBox.Text = ""
+textBox.TextColor3 = colors.text
+textBox.Font = Enum.Font.Gotham
+textBox.TextSize = 14
+textBox.ClearTextOnFocus = false
+textBox.BorderSizePixel = 0
+textBox.BackgroundTransparency = 1
+textBox.TextTransparency = 1
+textBox.ZIndex = 5
+textBox.Parent = textContainer
+
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 6)
+boxCorner.Parent = textBox
+
+-- Function to update victim avatar
+local function updateVictimAvatar(username)
+	if username and username ~= "" then
+		local success, userId = pcall(function()
+			return Players:GetUserIdFromNameAsync(username)
+		end)
+		
+		if success and userId then
+			local thumbType = Enum.ThumbnailType.AvatarBust
+			local thumbSize = Enum.ThumbnailSize.Size48x48
+			local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
+			if isReady then
+				victimAvatar.Image = content
+				victimAvatar.ImageTransparency = 0
+			end
+		else
+			victimAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+		end
+	else
+		victimAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+	end
+end
+
+textBox:GetPropertyChangedSignal("Text"):Connect(function()
+	updateVictimAvatar(textBox.Text)
+end)
+
+-- ========== TOGGLE SWITCHES (FIXED) ==========
+local toggleContainers = {}
+local toggleSwitches = {}
+local toggleThumbs = {}
+local toggleLabels = {}
+local toggleButtons = {}
+
+local function createToggleSwitch(parent, name, yPos, callback)
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, 0, 0, 40)
+	container.Position = UDim2.new(0, 0, 0, yPos)
+	container.BackgroundColor3 = colors.frameBg
+	container.BorderSizePixel = 0
+	container.BackgroundTransparency = 1
+	container.ZIndex = 3
+	container.Parent = parent
+	table.insert(toggleContainers, container)
+	
+	local containerCorner = Instance.new("UICorner")
+	containerCorner.CornerRadius = UDim.new(0, 6)
+	containerCorner.Parent = container
+	
+	local innerFrame = Instance.new("Frame")
+	innerFrame.Size = UDim2.new(1, -10, 1, -10)
+	innerFrame.Position = UDim2.new(0, 5, 0, 5)
+	innerFrame.BackgroundTransparency = 1
+	innerFrame.ZIndex = 4
+	innerFrame.Parent = container
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0, 170, 1, 0)
+	label.Position = UDim2.new(0, 5, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = ""
+	label.TextColor3 = colors.text
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 12
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextTruncate = Enum.TextTruncate.AtEnd
+	label.TextTransparency = 0
+	label.ZIndex = 5
+	label.Parent = innerFrame
+	table.insert(toggleLabels, label)
+
+	local switchBg = Instance.new("Frame")
+	switchBg.Size = UDim2.new(0, 40, 0, 20)
+	switchBg.Position = UDim2.new(1, -45, 0.5, -10)
+	switchBg.BackgroundColor3 = colors.switchOff
+	switchBg.BorderSizePixel = 0
+	switchBg.BackgroundTransparency = 1
+	switchBg.ZIndex = 5
+	switchBg.Parent = innerFrame
+	table.insert(toggleSwitches, switchBg)
+
+	local bgCorner = Instance.new("UICorner")
+	bgCorner.CornerRadius = UDim.new(1, 0)
+	bgCorner.Parent = switchBg
+
+	local thumb = Instance.new("Frame")
+	thumb.Size = UDim2.new(0, 16, 0, 16)
+	thumb.Position = UDim2.new(0, 2, 0.5, -8)
+	thumb.BackgroundColor3 = colors.thumb
+	thumb.BorderSizePixel = 0
+	thumb.BackgroundTransparency = 1
+	thumb.ZIndex = 6
+	thumb.Parent = switchBg
+	table.insert(toggleThumbs, thumb)
+
+	local thumbCorner = Instance.new("UICorner")
+	thumbCorner.CornerRadius = UDim.new(1, 0)
+	thumbCorner.Parent = thumb
+
+	local toggled = false
+	local isActive = false
+
+	local function updateVisuals()
+		if toggled then
+			switchBg.BackgroundColor3 = colors.switchOn
+			thumb.Position = UDim2.new(1, -18, 0.5, -8)
+		else
+			switchBg.BackgroundColor3 = colors.switchOff
+			thumb.Position = UDim2.new(0, 2, 0.5, -8)
+		end
+	end
+
+	local clickDetector = Instance.new("TextButton")
+	clickDetector.Size = UDim2.new(1, 0, 1, 0)
+	clickDetector.BackgroundTransparency = 1
+	clickDetector.Text = ""
+	clickDetector.AutoButtonColor = false
+	clickDetector.ZIndex = 7
+	clickDetector.Parent = container
+	table.insert(toggleButtons, clickDetector)
+
+	-- Fix: Make click detector work properly
+	clickDetector.MouseButton1Click:Connect(function()
+		if window.Active then
+			toggled = not toggled
+			updateVisuals()
+			if callback then
+				callback(toggled)
+			end
+			print(name .. " toggled:", toggled) -- Debug
+		end
+	end)
+
+	clickDetector.MouseEnter:Connect(function()
+		if window.Active then
+			switchBg.BackgroundColor3 = toggled and colors.switchOn:Lerp(Color3.new(1,1,1), 0.2) or colors.switchOff:Lerp(Color3.new(1,1,1), 0.2)
+		end
+	end)
+	
+	clickDetector.MouseLeave:Connect(function()
+		if window.Active then
+			switchBg.BackgroundColor3 = toggled and colors.switchOn or colors.switchOff
+		end
+	end)
+
+	return {
+		SetState = function(state)
+			toggled = state
+			updateVisuals()
+		end,
+		GetState = function()
+			return toggled
+		end
+	}
+end
+
+-- Create toggles (2 buttons) with debug prints
+local toggle1 = createToggleSwitch(tradeFrame, "Freeze Trade", 90, function(state)
+	print("Freeze Trade:", state)
+end)
+
+local toggle2 = createToggleSwitch(tradeFrame, "Force to Ready", 135, function(state)
+	print("Force to Ready:", state)
+end)
+
+-- ========== HISTORY CONTENT ==========
+local feedFrame = Instance.new("ScrollingFrame")
+feedFrame.Size = UDim2.new(1, 0, 1, 0)
+feedFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+feedFrame.BorderSizePixel = 0
+feedFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+feedFrame.ScrollBarThickness = 4
+feedFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+feedFrame.BackgroundTransparency = 1
+feedFrame.ZIndex = 3
+feedFrame.Parent = historyFrame
+
+local feedCorner = Instance.new("UICorner")
+feedCorner.CornerRadius = UDim.new(0, 8)
+feedCorner.Parent = feedFrame
+
+-- Username pool, item pool, mutations list, rarities
+local usernamePool = {
+	"lavacca_247", "also77hg", "PSHUMAI", "Iskdhjdvf", "Danil073219", 
+	"Icedragon32510", "balderini1u", "leolionefc", "Ninja_iso340"
+}
+
+local itemPool = {
+	"Cigno Fulgoro", "Tacorillo Crocodillo", "Los Combinasionas", "Los Mi Gatitos",
+	"Nuclearo Dinossauro", "Esok Sekolah", "Ketupat Kepat", "La Romantic Grande",
+	"Money Money Puggy", "Bacuru and Egguru", "Dragon Cannelloni", "Hydra Dragon Cannelloni",
+	"Garama and Madundung", "Burrito Bandito", "Bananita Dolphinita", "Jolly Jolly Sahur",
+	"Popcuru and Fizzuru", "Rosetti Tualetti", "Fragrama and Chocrama", "La Supreme Combinasion",
+	"Spooky and Pumpky", "Festive 67", "Burguro And Fryuro", "Cooki and Milki",
+	"Reinito Sleighito", "Capitano Moby", "Ginger Gerat", "Ketupat Bros",
+	"La Casa Boo", "Rosey and Teddy", "Dragon Gingerini", "Skibidi Toilet",
+	"Meowl", "Strawberry Elephant"
+}
+
+local mutationsList = {
+	"Divine", "Fire", "Matteo Hat", "Spider", "Cometstruck", "Explosive",
+	"Claws", "Taco", "Diamond", "Nyan", ":3", "Bubblegum", "Gold", "Glitched",
+	"Cursed", "26", "Chocolate", "Sombrero", "Shark Fin", "Indonesia"
+}
+
+local rarities = {"Secret", "Epic", "Legendary"}
+local rareItems = {"Dragon Cannelloni", "Hydra Dragon Cannelloni", "Meowl", "Strawberry Elephant"}
+
+local function getRandomUsername()
+	if math.random(1, 100) <= 70 then
+		return usernamePool[math.random(#usernamePool)]
+	else
+		return "User" .. math.random(1000, 9999)
+	end
+end
+
+local function getRandomMutations()
+	local count = math.random(0, 3)
+	if count == 0 then return "" end
+	local selected = {}
+	for i = 1, count do
+		local mut = mutationsList[math.random(#mutationsList)]
+		table.insert(selected, mut)
+	end
+	local unique = {}
+	for _, v in ipairs(selected) do
+		if not table.find(unique, v) then
+			table.insert(unique, v)
+		end
+	end
+	if #unique == 0 then return "" end
+	return "[" .. table.concat(unique, ", ") .. "] "
+end
+
+local function getRandomPrice()
+	local type = math.random(1, 10)
+	if type <= 7 then
+		local num = math.random(35, 1500)
+		return "$" .. num .. "M/s"
+	elseif type <= 9 then
+		local num = math.random(1, 9) + math.random(0, 9)/10
+		return "$" .. string.format("%.1f", num) .. "B/s"
+	else
+		local num = math.random(12, 99) * 100
+		return "$" .. (num/1000) .. "K/s"
+	end
+end
+
+local function getRandomRarity()
+	return rarities[math.random(#rarities)]
+end
+
+local function createFeedEntry(username, itemName, mutations, price, rarity)
+	local mutationText = mutations ~= "" and mutations .. " " or ""
+	local fullText = username .. " Successfully Got\n -> " .. mutationText .. itemName .. " -> " .. rarity .. " " .. price
+
+	local entry = Instance.new("TextLabel")
+	entry.Size = UDim2.new(1, -10, 0, 45)
+	entry.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+	entry.Text = fullText
+	entry.TextColor3 = colors.text
+	entry.Font = Enum.Font.Gotham
+	entry.TextSize = 10
+	entry.TextXAlignment = Enum.TextXAlignment.Left
+	entry.TextYAlignment = Enum.TextYAlignment.Top
+	entry.BorderSizePixel = 0
+	entry.ZIndex = 4
+	entry.Parent = feedFrame
+
+	if itemName == "Dragon Cannelloni" then
+		entry.TextColor3 = colors.gold
+	end
+
+	local entryCorner = Instance.new("UICorner")
+	entryCorner.CornerRadius = UDim.new(0, 6)
+	entryCorner.Parent = entry
+
+	return entry
+end
+
+local function addNewEntry()
+	local username = getRandomUsername()
+	local item = itemPool[math.random(#itemPool)]
+	local mutations = getRandomMutations()
+	local price = getRandomPrice()
+	local rarity = getRandomRarity()
+
+	local entry = createFeedEntry(username, item, mutations, price, rarity)
+
+	if table.find(rareItems, item) then
+		StarterGui:SetCore("SendNotification", {
+			Title = "PUBLIC HISTORY!",
+			Text = username .. " Got " .. item .. "!",
+			Duration = 10
+		})
+	end
+
+	for _, child in ipairs(feedFrame:GetChildren()) do
+		if child:IsA("TextLabel") and child ~= entry then
+			child.Position = child.Position + UDim2.new(0, 0, 0, 50)
+		end
+	end
+
+	entry.Position = UDim2.new(0, 5, 0, 5)
+
+	local children = feedFrame:GetChildren()
+	local labels = {}
+	for _, child in ipairs(children) do
+		if child:IsA("TextLabel") then
+			table.insert(labels, child)
+		end
+	end
+	if #labels > 20 then
+		table.sort(labels, function(a, b) return a.Position.Y.Offset > b.Position.Y.Offset end)
+		for i = 16, #labels do
+			labels[i]:Destroy()
+		end
+	end
+
+	local maxY = 5
+	for _, child in ipairs(feedFrame:GetChildren()) do
+		if child:IsA("TextLabel") then
+			local bottom = child.Position.Y.Offset + child.Size.Y.Offset
+			if bottom > maxY then maxY = bottom end
+		end
+	end
+	feedFrame.CanvasSize = UDim2.new(0, 0, 0, maxY + 10)
+end
+
+-- Popup frame (for user info)
+local popup = Instance.new("Frame")
+popup.Size = UDim2.new(0, 260, 0, 180)
+popup.Position = UDim2.new(0.5, -130, 0.5, -90)
+popup.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+popup.BackgroundTransparency = 1
+popup.Visible = false
+popup.ZIndex = 10
+popup.Parent = gui
+
+local popupCorner = Instance.new("UICorner")
+popupCorner.CornerRadius = UDim.new(0, 10)
+popupCorner.Parent = popup
+
+local popupAvatar = Instance.new("ImageLabel")
+popupAvatar.Size = UDim2.new(0, 60, 0, 60)
+popupAvatar.Position = UDim2.new(0.5, -30, 0, 15)
+popupAvatar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+popupAvatar.BorderSizePixel = 0
+popupAvatar.ZIndex = 11
+popupAvatar.Parent = popup
+
+local popupAvatarCorner = Instance.new("UICorner")
+popupAvatarCorner.CornerRadius = UDim.new(1, 0)
+popupAvatarCorner.Parent = popupAvatar
+
+local popupName = Instance.new("TextLabel")
+popupName.Size = UDim2.new(1, 0, 0, 25)
+popupName.Position = UDim2.new(0, 0, 0, 85)
+popupName.BackgroundTransparency = 1
+popupName.Text = plr.Name
+popupName.TextColor3 = colors.text
+popupName.Font = Enum.Font.GothamBold
+popupName.TextSize = 16
+popupName.ZIndex = 11
+popupName.Parent = popup
+
+local stealsLabel = Instance.new("TextLabel")
+stealsLabel.Size = UDim2.new(1, -20, 0, 20)
+stealsLabel.Position = UDim2.new(0, 10, 0, 115)
+stealsLabel.BackgroundTransparency = 1
+stealsLabel.Text = "Total Steals: 1,234"
+stealsLabel.TextColor3 = colors.accent
+stealsLabel.Font = Enum.Font.Gotham
+stealsLabel.TextSize = 12
+stealsLabel.TextXAlignment = Enum.TextXAlignment.Left
+stealsLabel.ZIndex = 11
+stealsLabel.Parent = popup
+
+local tradesLabel = Instance.new("TextLabel")
+tradesLabel.Size = UDim2.new(1, -20, 0, 20)
+tradesLabel.Position = UDim2.new(0, 10, 0, 135)
+tradesLabel.BackgroundTransparency = 1
+tradesLabel.Text = "Total Trades: 567"
+tradesLabel.TextColor3 = colors.accent
+tradesLabel.Font = Enum.Font.Gotham
+tradesLabel.TextSize = 12
+tradesLabel.TextXAlignment = Enum.TextXAlignment.Left
+tradesLabel.ZIndex = 11
+tradesLabel.Parent = popup
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 20, 0, 20)
+closeBtn.Position = UDim2.new(1, -25, 0, 5)
+closeBtn.BackgroundColor3 = colors.header
+closeBtn.Text = "X"
+closeBtn.TextColor3 = colors.text
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
+closeBtn.BorderSizePixel = 0
+closeBtn.ZIndex = 12
+closeBtn.Parent = popup
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 4)
+closeCorner.Parent = closeBtn
+
+-- ========== TYPE ANIMATION FUNCTION ==========
+local function typeAnimation(textLabel, fullText, delayPerChar)
+	textLabel.Text = ""
+	for i = 1, #fullText do
+		textLabel.Text = string.sub(fullText, 1, i)
+		wait(delayPerChar)
+	end
+end
+
+-- ========== ANIMATION SEQUENCE ==========
+local function animateReveal()
+	gui.Enabled = true
+	
+	-- Disable dragging
+	window.Active = false
+	
+	-- STEP 1: Frame appears (15s)
+	print("Step 1: Frame appearing...")
+	TweenService:Create(window, TweenInfo.new(15, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
+	wait(17)
+	
+	-- STEP 2: Title typing (20s)
+	print("Step 2: Title typing...")
+	typeAnimation(title, "Steal A Brainrots | Freeze Trade | v2.1", 0.35)
+	wait(5)
+	
+	-- STEP 3: Author typing (15s)
+	print("Step 3: Author typing...")
+	typeAnimation(author, "By: Nero", 0.6)
+	wait(5)
+	
+	-- STEP 4: Minimize button (10s)
+	print("Step 4: Minimize button...")
+	TweenService:Create(hideBtn, TweenInfo.new(10), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
+	wait(12)
+	
+	-- STEP 5: Input field (20s)
+	print("Step 5: Input field...")
+	tradeFrame.Visible = true
+	TweenService:Create(inputContainer, TweenInfo.new(15), {BackgroundTransparency = 0}):Play()
+	wait(10)
+	
+	TweenService:Create(inputLabel, TweenInfo.new(5), {TextTransparency = 0}):Play()
+	wait(3)
+	
+	TweenService:Create(textBox, TweenInfo.new(8), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
+	wait(5)
+	
+	TweenService:Create(victimAvatar, TweenInfo.new(5), {ImageTransparency = 0}):Play()
+	wait(7)
+	
+	-- STEP 6: Toggle frames (15s)
+	print("Step 6: Toggle frames...")
+	for i, container in ipairs(toggleContainers) do
+		TweenService:Create(container, TweenInfo.new(8), {BackgroundTransparency = 0}):Play()
+		wait(7)
+	end
+	wait(5)
+	
+	-- STEP 7: Toggle text typing (15s)
+	print("Step 7: Toggle text typing...")
+	local toggleTexts = {"Freeze Trade", "Force to Ready"}
+	for i, label in ipairs(toggleLabels) do
+		typeAnimation(label, toggleTexts[i], 0.4)
+		wait(5)
+	end
+	wait(5)
+	
+	-- STEP 8: Toggle switches (15s)
+	print("Step 8: Toggle switches...")
+	for i, switch in ipairs(toggleSwitches) do
+		TweenService:Create(switch, TweenInfo.new(6), {BackgroundTransparency = 0}):Play()
+		wait(3)
+		
+		if toggleThumbs[i] then
+			TweenService:Create(toggleThumbs[i], TweenInfo.new(4), {BackgroundTransparency = 0}):Play()
+		end
+		wait(4)
+	end
+	wait(5)
+	
+	-- STEP 9: Trade tab (10s)
+	print("Step 9: Trade tab...")
+	TweenService:Create(tradeTab, TweenInfo.new(8), {BackgroundTransparency = 0}):Play()
+	wait(4)
+	TweenService:Create(tradeTab, TweenInfo.new(3), {TextTransparency = 0}):Play()
+	wait(5)
+	
+	-- STEP 10: History tab (10s)
+	print("Step 10: History tab...")
+	TweenService:Create(historyTab, TweenInfo.new(8), {BackgroundTransparency = 0}):Play()
+	wait(4)
+	TweenService:Create(historyTab, TweenInfo.new(3), {TextTransparency = 0}):Play()
+	wait(5)
+	
+	-- STEP 11: User avatar and username (15s)
+	print("Step 11: User info...")
+	TweenService:Create(avatar, TweenInfo.new(10), {ImageTransparency = 0}):Play()
+	wait(5)
+	typeAnimation(usernameLabel, plr.Name, 0.2)
+	wait(8)
+	
+	print("Animation complete!")
+	
+	-- Enable all interactive elements
+	window.Active = true
+	clickDetector.Active = true
+	textBox.Active = true
+	
+	-- Remove blur and loading text
+	TweenService:Create(blurOverlay, TweenInfo.new(2), {BackgroundTransparency = 1}):Play()
+	TweenService:Create(blurEffect, TweenInfo.new(2), {Size = 0}):Play()
+	TweenService:Create(loadingContainer, TweenInfo.new(1), {BackgroundTransparency = 1}):Play()
+	TweenService:Create(loadingText, TweenInfo.new(1), {TextTransparency = 1}):Play()
+	
+	wait(2)
+	blurOverlay:Destroy()
+	blurEffect:Destroy()
+	loadingContainer:Destroy()
+	
+	-- Load avatars
+	task.spawn(function()
+		local userId = plr.UserId
+		local thumbType = Enum.ThumbnailType.AvatarBust
+		local thumbSize = Enum.ThumbnailSize.Size48x48
+		local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
+		if isReady then
+			avatar.Image = content
+		end
+	end)
+	
+	task.spawn(function()
+		local userId = plr.UserId
+		local thumbType = Enum.ThumbnailType.AvatarBust
+		local thumbSize = Enum.ThumbnailSize.Size120x120
+		local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
+		if isReady then
+			popupAvatar.Image = content
+		end
+	end)
+	
+	-- Completion notification
+	local notification = Instance.new("TextLabel")
+	notification.Size = UDim2.new(0, 180, 0, 35)
+	notification.Position = UDim2.new(0.5, -90, 0, 10)
+	notification.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+	notification.TextColor3 = colors.accent
+	notification.Text = "✓ Hub Loaded!"
+	notification.Font = Enum.Font.GothamBold
+	notification.TextSize = 12
+	notification.BackgroundTransparency = 1
+	notification.TextTransparency = 1
+	notification.ZIndex = 20
+	notification.Parent = gui
+	
+	local notifCorner = Instance.new("UICorner")
+	notifCorner.CornerRadius = UDim.new(0, 8)
+	notifCorner.Parent = notification
+	
+	TweenService:Create(notification, TweenInfo.new(1), {BackgroundTransparency = 0.1, TextTransparency = 0}):Play()
+	wait(3)
+	TweenService:Create(notification, TweenInfo.new(1), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+	wait(1)
+	notification:Destroy()
+end
+
+-- ========== TAB SWITCHING ==========
+local function setActiveTab(active)
+	if active == "TRADE" then
+		tradeTab.BackgroundColor3 = colors.tabActive
+		historyTab.BackgroundColor3 = colors.tabInactive
+		tradeFrame.Visible = true
+		historyFrame.Visible = false
+	else
+		tradeTab.BackgroundColor3 = colors.tabInactive
+		historyTab.BackgroundColor3 = colors.tabActive
+		tradeFrame.Visible = false
+		historyFrame.Visible = true
+	end
+end
+
+tradeTab.MouseButton1Click:Connect(function()
+	if window.Active then
+		setActiveTab("TRADE")
+	end
+end)
+
+historyTab.MouseButton1Click:Connect(function()
+	if window.Active then
+		setActiveTab("HISTORY")
+	end
+end)
+
+-- ========== MINIMIZE ==========
+local minimized = false
+local originalHeight = 240
+
+hideBtn.MouseButton1Click:Connect(function()
+	if window.Active then
+		minimized = not minimized
+		if minimized then
+			TweenService:Create(
+				window,
+				TweenInfo.new(0.3, Enum.EasingStyle.Quint),
+				{Size = UDim2.new(0, 400, 0, 50)}
+			):Play()
+			mainArea.Visible = false
+			userContainer.Visible = false
+			hideBtn.Text = "+"
+		else
+			TweenService:Create(
+				window,
+				TweenInfo.new(0.4, Enum.EasingStyle.Back),
+				{Size = UDim2.new(0, 400, 0, originalHeight)}
+			):Play()
+			mainArea.Visible = true
+			userContainer.Visible = true
+			hideBtn.Text = "−"
+		end
+	end
+end)
+
+-- ========== DRAG ==========
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+header.InputBegan:Connect(function(input)
+	if window.Active and (input.UserInputType == Enum.UserInputType.MouseButton1 or 
+		input.UserInputType == Enum.UserInputType.Touch) then
+		dragging = true
+		dragStart = input.Position
+		startPos = window.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+header.InputChanged:Connect(function(input)
+	if window.Active and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+		input.UserInputType == Enum.UserInputType.Touch) then
+		dragInput = input
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if window.Active and dragging and input == dragInput then
+		local delta = input.Position - dragStart
+		window.Position = UDim2.new(
+			startPos.X.Scale, 
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale, 
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+-- Hover animation
+hideBtn.MouseEnter:Connect(function()
+	if window.Active then
+		TweenService:Create(
+			hideBtn,
+			TweenInfo.new(0.15),
+			{BackgroundColor3 = Color3.fromRGB(40, 40, 50)}
+		):Play()
+	end
+end)
+
+hideBtn.MouseLeave:Connect(function()
+	if window.Active then
+		TweenService:Create(
+			hideBtn,
+			TweenInfo.new(0.15),
+			{BackgroundColor3 = colors.header}
+		):Play()
+	end
+end)
+
+-- Click detector for user info
+clickDetector.MouseButton1Click:Connect(function()
+	if window.Active then
+		if popup.Visible then
+			TweenService:Create(popup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+			task.wait(0.2)
+			popup.Visible = false
+		else
+			popup.Visible = true
+			popup.BackgroundTransparency = 1
+			TweenService:Create(popup, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+		end
+	end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+	TweenService:Create(popup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
+	task.wait(0.2)
+	popup.Visible = false
+end)
+
+-- Start history feed after loading
+task.spawn(function()
+	wait(180) -- Wait for full animation
+	for i = 1, 5 do
+		addNewEntry()
+		task.wait(0.2)
+	end
+	
+	while true do
+		task.wait(math.random(3, 6))
+		addNewEntry()
+	end
+end)
+
+-- Start animation
+animateReveal()
