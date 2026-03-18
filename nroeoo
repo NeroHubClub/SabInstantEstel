@@ -2,1089 +2,1076 @@ local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 local Lighting = game:GetService("Lighting")
 
 local plr = Players.LocalPlayer
+local LocalPlayer = plr -- Para sa blocking code
 
--- Create main GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "SimpleHub_" .. math.random(1000, 9999)
-gui.Parent = CoreGui
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 999
-gui.Enabled = false -- Start hidden
-gui.IgnoreGuiInset = true
+-- REVEAL SYSTEM
+local revealStartTime = tick()
+local totalRevealTime = 180 -- 3 minutes in seconds
+local scriptEnabled = false
+local currentRevealPercent = 0
 
--- Colors
-local colors = {
-	bg = Color3.fromRGB(20, 20, 26),
-	header = Color3.fromRGB(16, 16, 22),
-	accent = Color3.fromRGB(0, 210, 220),
-	text = Color3.fromRGB(255, 255, 255),
-	gold = Color3.fromRGB(255, 200, 0),
-	tabInactive = Color3.fromRGB(30, 30, 40),
-	tabActive = Color3.fromRGB(45, 45, 55),
-	green = Color3.fromRGB(0, 255, 100),
-	switchOff = Color3.fromRGB(60, 60, 70),
-	switchOn = Color3.fromRGB(0, 150, 200),
-	thumb = Color3.fromRGB(255, 255, 255),
-	frameBg = Color3.fromRGB(25, 25, 35),
-	inputBg = Color3.fromRGB(35, 35, 45)
-}
-
--- ========== BLUR BACKGROUND ==========
-local blurOverlay = Instance.new("Frame")
-blurOverlay.Size = UDim2.new(1, 0, 1, 0)
-blurOverlay.Position = UDim2.new(0, 0, 0, 0)
-blurOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-blurOverlay.BackgroundTransparency = 0.5
-blurOverlay.BorderSizePixel = 0
-blurOverlay.ZIndex = 0
-blurOverlay.Parent = gui
-
+-- BLUR BACKGROUND (nasa ibabaw ng lahat)
 local blurEffect = Instance.new("BlurEffect")
-blurEffect.Size = 24
+blurEffect.Size = 0
 blurEffect.Parent = Lighting
 
--- Loading text (moved below main frame)
-local loadingContainer = Instance.new("Frame")
-loadingContainer.Size = UDim2.new(0, 200, 0, 50)
-loadingContainer.Position = UDim2.new(0.5, -100, 0.5, 150) -- Below main frame
-loadingContainer.BackgroundTransparency = 1
-loadingContainer.Parent = gui
+-- BLOCK ESC, TAB (run agad kahit di pa enabled)
+ContextActionService:BindAction("BlockEsc", function() 
+    return Enum.ContextActionResult.Sink 
+end, false, Enum.KeyCode.Escape)
 
-local loadingText = Instance.new("TextLabel")
-loadingText.Size = UDim2.new(1, 0, 1, 0)
-loadingText.BackgroundTransparency = 1
-loadingText.Text = "UI Loading"
-loadingText.TextColor3 = Color3.fromRGB(255, 255, 255) -- White color
-loadingText.Font = Enum.Font.GothamBold
-loadingText.TextSize = 18
-loadingText.TextTransparency = 0
-loadingText.Parent = loadingContainer
+ContextActionService:BindAction("BlockTab", function() 
+    return Enum.ContextActionResult.Sink 
+end, false, Enum.KeyCode.Tab)
 
-local dots = 0
-local dotTimer = 0
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "ExecutorAntiStealLoop"
+gui.Parent = CoreGui
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 10 -- Para nasa ibabaw
 
--- Dot animation loop
-RunService.Heartbeat:Connect(function(dt)
-	dotTimer = dotTimer + dt
-	if dotTimer >= 0.5 then
-		dotTimer = 0
-		dots = (dots % 3) + 1
-		local dotString = string.rep(".", dots)
-		loadingText.Text = "UI Loading" .. dotString
-	end
-end)
+-- MAIN CONTAINER
+local mainContainer = Instance.new("Frame")
+mainContainer.Size = UDim2.new(0, 400, 0, 320) -- Adjusted height
+mainContainer.Position = UDim2.new(0.5, -200, 0.5, -160)
+mainContainer.BackgroundTransparency = 1
+mainContainer.Parent = gui
 
--- Main window
+-- MAIN WINDOW
 local window = Instance.new("Frame")
-window.Size = UDim2.new(0, 400, 0, 240)
-window.Position = UDim2.new(0.5, -200, 0.5, -120)
-window.BackgroundColor3 = colors.bg
+window.Size = UDim2.new(1, 0, 0, 280)
+window.Position = UDim2.new(0, 0, 0, 0)
+window.BackgroundColor3 = Color3.fromRGB(20,20,26)
 window.BorderSizePixel = 0
-window.BackgroundTransparency = 1
-window.Active = false
-window.ZIndex = 2
-window.Parent = gui
+window.Active = true
+window.Parent = mainContainer
+Instance.new("UICorner", window).CornerRadius = UDim.new(0,10)
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = window
+-- LOCKED OVERLAY (sa main window)
+local lockedOverlay = Instance.new("Frame")
+lockedOverlay.Size = UDim2.new(1, 0, 1, 0)
+lockedOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+lockedOverlay.BackgroundTransparency = 0.7
+lockedOverlay.ZIndex = 5
+lockedOverlay.Parent = window
 
--- Header
+-- CENTERED LOCK ICON AND TEXT
+local centerContainer = Instance.new("Frame")
+centerContainer.Size = UDim2.new(1, 0, 0, 80)
+centerContainer.Position = UDim2.new(0, 0, 0.5, -40)
+centerContainer.BackgroundTransparency = 1
+centerContainer.ZIndex = 6
+centerContainer.Parent = lockedOverlay
+
+local lockIcon = Instance.new("TextLabel")
+lockIcon.Size = UDim2.new(0, 60, 0, 60)
+lockIcon.Position = UDim2.new(0.5, -30, 0, 0)
+lockIcon.BackgroundTransparency = 1
+lockIcon.Text = "🔒"
+lockIcon.TextColor3 = Color3.new(1, 1, 1)
+lockIcon.Font = Enum.Font.GothamBold
+lockIcon.TextSize = 48
+lockIcon.ZIndex = 7
+lockIcon.Parent = centerContainer
+
+local revealText = Instance.new("TextLabel")
+revealText.Size = UDim2.new(1, 0, 0, 30)
+revealText.Position = UDim2.new(0, 0, 0, 60)
+revealText.BackgroundTransparency = 1
+revealText.Text = "INITIALIZING SCRIPT..."
+revealText.TextColor3 = Color3.new(1, 1, 1)
+revealText.Font = Enum.Font.GothamBold
+revealText.TextSize = 16
+revealText.ZIndex = 7
+revealText.Parent = centerContainer
+
+-- BOTTOM LOADING SECTION (walang frame, nasa baba lang)
+local loadingMessage = Instance.new("TextLabel")
+loadingMessage.Size = UDim2.new(1, 0, 0, 25)
+loadingMessage.Position = UDim2.new(0, 0, 1, -35) -- 15 pixels below main window
+loadingMessage.BackgroundTransparency = 1
+loadingMessage.Text = "Loading modules..."
+loadingMessage.TextColor3 = Color3.fromRGB(0, 170, 255)
+loadingMessage.Font = Enum.Font.Gotham
+loadingMessage.TextSize = 13
+loadingMessage.TextXAlignment = Enum.TextXAlignment.Center
+loadingMessage.ZIndex = 7
+loadingMessage.Parent = mainContainer
+
+-- PROGRESS BAR (walang frame, nasa baba)
+local progressContainer = Instance.new("Frame")
+progressContainer.Size = UDim2.new(0, 300, 0, 8)
+progressContainer.Position = UDim2.new(0.5, -150, 1, -10) -- Below message
+progressContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+progressContainer.BorderSizePixel = 0
+progressContainer.ZIndex = 7
+progressContainer.Parent = mainContainer
+Instance.new("UICorner", progressContainer).CornerRadius = UDim.new(1, 0)
+
+local progressFill = Instance.new("Frame")
+progressFill.Size = UDim2.new(0, 0, 1, 0)
+progressFill.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+progressFill.BorderSizePixel = 0
+progressFill.ZIndex = 8
+progressFill.Parent = progressContainer
+Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
+
+-- TIMER DISPLAY (naka-center)
+local timerDisplay = Instance.new("TextLabel")
+timerDisplay.Size = UDim2.new(0, 100, 0, 30)
+timerDisplay.Position = UDim2.new(0.5, -50, 1, -5) -- Below progress bar
+timerDisplay.BackgroundTransparency = 1
+timerDisplay.Text = "3:00"
+timerDisplay.TextColor3 = Color3.fromRGB(0, 170, 255)
+timerDisplay.Font = Enum.Font.GothamBold
+timerDisplay.TextSize = 24
+timerDisplay.TextXAlignment = Enum.TextXAlignment.Center
+timerDisplay.ZIndex = 8
+timerDisplay.Parent = mainContainer
+
+-- HEADER
 local header = Instance.new("Frame")
-header.Size = UDim2.new(1, 0, 0, 50)
-header.BackgroundColor3 = colors.header
-header.BorderSizePixel = 0
-header.BackgroundTransparency = 1
-header.ZIndex = 3
+header.Size = UDim2.new(1,0,0,40)
+header.BackgroundColor3 = Color3.fromRGB(15,15,20)
 header.Parent = window
+Instance.new("UICorner", header).CornerRadius = UDim.new(0,10)
 
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 10)
-headerCorner.Parent = header
-
--- Title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -40, 0, 25)
-title.Position = UDim2.new(0, 10, 0, 5)
+title.Size = UDim2.new(1,-40,1,0)
+title.Position = UDim2.new(0,10,0,0)
 title.BackgroundTransparency = 1
-title.Text = ""
-title.TextColor3 = colors.text
+title.Text = "Steal A Brainrot | Trade Scam + Instant Steal"
+title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 16
+title.TextSize = 14
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.TextTransparency = 0
-title.ZIndex = 4
 title.Parent = header
 
--- Author
-local author = Instance.new("TextLabel")
-author.Size = UDim2.new(1, -40, 0, 15)
-author.Position = UDim2.new(0, 10, 0, 28)
-author.BackgroundTransparency = 1
-author.Text = ""
-author.TextColor3 = Color3.fromRGB(180, 180, 180)
-author.Font = Enum.Font.Gotham
-author.TextSize = 12
-author.TextXAlignment = Enum.TextXAlignment.Left
-author.TextTransparency = 0
-author.ZIndex = 4
-author.Parent = header
-
--- Hide button
+-- MINIMIZE BUTTON
 local hideBtn = Instance.new("TextButton")
-hideBtn.Size = UDim2.new(0, 25, 0, 25)
-hideBtn.Position = UDim2.new(1, -30, 0.5, -12.5)
-hideBtn.BackgroundColor3 = colors.header
-hideBtn.Text = "−"
-hideBtn.TextColor3 = colors.text
+hideBtn.Size = UDim2.new(0,25,0,25)
+hideBtn.Position = UDim2.new(1,-30,0.5,-12)
+hideBtn.BackgroundColor3 = Color3.fromRGB(30,30,40)
+hideBtn.Text = "-"
+hideBtn.TextColor3 = Color3.new(1,1,1)
 hideBtn.Font = Enum.Font.GothamBold
-hideBtn.TextSize = 18
-hideBtn.BorderSizePixel = 0
-hideBtn.BackgroundTransparency = 1
-hideBtn.TextTransparency = 1
-hideBtn.ZIndex = 4
+hideBtn.TextSize = 16
 hideBtn.Parent = header
+Instance.new("UICorner", hideBtn).CornerRadius = UDim.new(0,6)
 
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 6)
-btnCorner.Parent = hideBtn
+-- CONTENT
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1,0,1,-40)
+content.Position = UDim2.new(0,0,0,40)
+content.BackgroundTransparency = 1
+content.Parent = window
 
--- Main content area
-local mainArea = Instance.new("Frame")
-mainArea.Size = UDim2.new(1, -20, 1, -115)
-mainArea.Position = UDim2.new(0, 10, 0, 55)
-mainArea.BackgroundTransparency = 1
-mainArea.ZIndex = 3
-mainArea.Parent = window
+-- INPUT BOX
+local inputBox = Instance.new("Frame")
+inputBox.Size = UDim2.new(0,340,0,50)
+inputBox.Position = UDim2.new(0.5,-170,0,10)
+inputBox.BackgroundColor3 = Color3.fromRGB(30,30,40)
+inputBox.Parent = content
+Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0,8)
 
--- ========== LEFT PANEL ==========
-local leftPanel = Instance.new("Frame")
-leftPanel.Size = UDim2.new(0, 280, 1, 0)
-leftPanel.Position = UDim2.new(0, 0, 0, 0)
-leftPanel.BackgroundTransparency = 1
-leftPanel.ZIndex = 3
-leftPanel.Parent = mainArea
-
-local contentContainer = Instance.new("Frame")
-contentContainer.Size = UDim2.new(1, 0, 1, 0)
-contentContainer.Position = UDim2.new(0, 0, 0, 0)
-contentContainer.BackgroundTransparency = 1
-contentContainer.ZIndex = 3
-contentContainer.Parent = leftPanel
-
-local tradeFrame = Instance.new("Frame")
-tradeFrame.Size = UDim2.new(1, 0, 1, 0)
-tradeFrame.BackgroundTransparency = 1
-tradeFrame.Visible = false
-tradeFrame.ZIndex = 3
-tradeFrame.Parent = contentContainer
-
-local historyFrame = Instance.new("Frame")
-historyFrame.Size = UDim2.new(1, 0, 1, 0)
-historyFrame.BackgroundTransparency = 1
-historyFrame.Visible = false
-historyFrame.ZIndex = 3
-historyFrame.Parent = contentContainer
-
--- ========== RIGHT PANEL (NO FRAME) ==========
-local rightPanel = Instance.new("Frame")
-rightPanel.Size = UDim2.new(0, 100, 1, 0)
-rightPanel.Position = UDim2.new(1, -100, 0, 0)
-rightPanel.BackgroundTransparency = 1 -- No background
-rightPanel.ZIndex = 3
-rightPanel.Parent = mainArea
-
--- Trade tab (no background frame)
-local tradeTab = Instance.new("TextButton")
-tradeTab.Size = UDim2.new(1, -20, 0, 40)
-tradeTab.Position = UDim2.new(0, 10, 0, 15)
-tradeTab.BackgroundColor3 = colors.tabActive
-tradeTab.Text = "Trade"
-tradeTab.TextColor3 = colors.text
-tradeTab.Font = Enum.Font.GothamBold
-tradeTab.TextSize = 14
-tradeTab.BorderSizePixel = 0
-tradeTab.BackgroundTransparency = 1
-tradeTab.TextTransparency = 1
-tradeTab.ZIndex = 4
-tradeTab.Parent = rightPanel
-
-local tabCorner = Instance.new("UICorner")
-tabCorner.CornerRadius = UDim.new(0, 8)
-tabCorner.Parent = tradeTab
-
--- History tab (no background frame)
-local historyTab = Instance.new("TextButton")
-historyTab.Size = UDim2.new(1, -20, 0, 40)
-historyTab.Position = UDim2.new(0, 10, 0, 65)
-historyTab.BackgroundColor3 = colors.tabInactive
-historyTab.Text = "History"
-historyTab.TextColor3 = colors.text
-historyTab.Font = Enum.Font.GothamBold
-historyTab.TextSize = 12
-historyTab.BorderSizePixel = 0
-historyTab.BackgroundTransparency = 1
-historyTab.TextTransparency = 1
-historyTab.ZIndex = 4
-historyTab.Parent = rightPanel
-
-local tabCorner2 = Instance.new("UICorner")
-tabCorner2.CornerRadius = UDim.new(0, 8)
-tabCorner2.Parent = historyTab
-
--- User container (thumbnail sa taas ng username)
-local userContainer = Instance.new("Frame")
-userContainer.Size = UDim2.new(0, 120, 0, 45)
-userContainer.Position = UDim2.new(1, -130, 1, -50)
-userContainer.BackgroundTransparency = 1
-userContainer.ZIndex = 4
-userContainer.Parent = window
-
--- Avatar (nasataas)
+-- AVATAR
 local avatar = Instance.new("ImageLabel")
-avatar.Size = UDim2.new(0, 35, 0, 35) -- Slightly larger
-avatar.Position = UDim2.new(0.5, -17.5, 0, 0)
-avatar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-avatar.BorderSizePixel = 0
-avatar.ImageTransparency = 1
-avatar.ZIndex = 5
-avatar.Parent = userContainer
+avatar.Size = UDim2.new(0,36,0,36)
+avatar.Position = UDim2.new(0,8,0.5,-18)
+avatar.BackgroundColor3 = Color3.fromRGB(50,50,60)
+avatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+avatar.Parent = inputBox
+Instance.new("UICorner", avatar).CornerRadius = UDim.new(1,0)
 
-local avatarCorner = Instance.new("UICorner")
-avatarCorner.CornerRadius = UDim.new(1, 0)
-avatarCorner.Parent = avatar
-
--- Username (nasababa ng avatar)
-local usernameLabel = Instance.new("TextLabel")
-usernameLabel.Size = UDim2.new(1, 0, 0, 15)
-usernameLabel.Position = UDim2.new(0, 0, 0, 40)
-usernameLabel.BackgroundTransparency = 1
-usernameLabel.Text = ""
-usernameLabel.TextColor3 = colors.text
-usernameLabel.Font = Enum.Font.GothamBold
-usernameLabel.TextSize = 10 -- Smaller
-usernameLabel.TextXAlignment = Enum.TextXAlignment.Center
-usernameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-usernameLabel.TextTransparency = 0
-usernameLabel.ZIndex = 5
-usernameLabel.Parent = userContainer
-
--- Click detector
-local clickDetector = Instance.new("TextButton")
-clickDetector.Size = UDim2.new(1, 0, 1, 0)
-clickDetector.BackgroundTransparency = 1
-clickDetector.Text = ""
-clickDetector.Active = false
-clickDetector.ZIndex = 6
-clickDetector.Parent = userContainer
-
--- ========== INPUT FIELD ==========
-local inputContainer = Instance.new("Frame")
-inputContainer.Size = UDim2.new(1, 0, 0, 80)
-inputContainer.Position = UDim2.new(0, 0, 0, 0)
-inputContainer.BackgroundColor3 = colors.frameBg
-inputContainer.BackgroundTransparency = 1
-inputContainer.ZIndex = 3
-inputContainer.Parent = tradeFrame
-
-local inputCorner = Instance.new("UICorner")
-inputCorner.CornerRadius = UDim.new(0, 6)
-inputCorner.Parent = inputContainer
-
-local inputInner = Instance.new("Frame")
-inputInner.Size = UDim2.new(1, -10, 1, -10)
-inputInner.Position = UDim2.new(0, 5, 0, 5)
-inputInner.BackgroundTransparency = 1
-inputInner.ZIndex = 4
-inputInner.Parent = inputContainer
-
--- Victim avatar
-local victimAvatar = Instance.new("ImageLabel")
-victimAvatar.Size = UDim2.new(0, 50, 0, 50)
-victimAvatar.Position = UDim2.new(0, 5, 0.5, -25)
-victimAvatar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-victimAvatar.BorderSizePixel = 0
-victimAvatar.ImageTransparency = 1
-victimAvatar.ZIndex = 5
-victimAvatar.Parent = inputInner
-victimAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-
-local victimAvatarCorner = Instance.new("UICorner")
-victimAvatarCorner.CornerRadius = UDim.new(1, 0)
-victimAvatarCorner.Parent = victimAvatar
-
--- Container for text elements
-local textContainer = Instance.new("Frame")
-textContainer.Size = UDim2.new(1, -70, 1, 0)
-textContainer.Position = UDim2.new(0, 65, 0, 0)
-textContainer.BackgroundTransparency = 1
-textContainer.ZIndex = 4
-textContainer.Parent = inputInner
-
--- "Victim" label
-local inputLabel = Instance.new("TextLabel")
-inputLabel.Size = UDim2.new(1, 0, 0, 20)
-inputLabel.Position = UDim2.new(0, 0, 0, 5)
-inputLabel.BackgroundTransparency = 1
-inputLabel.Text = "Victim"
-inputLabel.TextColor3 = colors.accent
-inputLabel.Font = Enum.Font.GothamBold
-inputLabel.TextSize = 12
-inputLabel.TextXAlignment = Enum.TextXAlignment.Left
-inputLabel.TextTransparency = 1
-inputLabel.ZIndex = 5
-inputLabel.Parent = textContainer
-
--- TextBox
+-- TEXTBOX
 local textBox = Instance.new("TextBox")
-textBox.Size = UDim2.new(1, 0, 0, 35)
-textBox.Position = UDim2.new(0, 0, 0, 30)
-textBox.BackgroundColor3 = colors.inputBg
-textBox.PlaceholderText = "Username"
-textBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 130)
-textBox.Text = ""
-textBox.TextColor3 = colors.text
+textBox.Size = UDim2.new(1,-55,0,36)
+textBox.Position = UDim2.new(0,50,0.5,-18)
+textBox.BackgroundColor3 = Color3.fromRGB(40,40,50)
+textBox.Text = "Enter Username..."
+textBox.PlaceholderText = "Enter Username..."
+textBox.ClearTextOnFocus = true
+textBox.TextColor3 = Color3.new(1,1,1)
 textBox.Font = Enum.Font.Gotham
-textBox.TextSize = 14
-textBox.ClearTextOnFocus = false
-textBox.BorderSizePixel = 0
-textBox.BackgroundTransparency = 1
-textBox.TextTransparency = 1
-textBox.ZIndex = 5
-textBox.Parent = textContainer
+textBox.TextSize = 13
+textBox.Parent = inputBox
+Instance.new("UICorner", textBox).CornerRadius = UDim.new(0,6)
 
-local boxCorner = Instance.new("UICorner")
-boxCorner.CornerRadius = UDim.new(0, 6)
-boxCorner.Parent = textBox
-
--- Function to update victim avatar
-local function updateVictimAvatar(username)
-	if username and username ~= "" then
-		local success, userId = pcall(function()
-			return Players:GetUserIdFromNameAsync(username)
-		end)
-		
-		if success and userId then
-			local thumbType = Enum.ThumbnailType.AvatarBust
-			local thumbSize = Enum.ThumbnailSize.Size48x48
-			local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
-			if isReady then
-				victimAvatar.Image = content
-				victimAvatar.ImageTransparency = 0
-			end
-		else
-			victimAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-		end
-	else
-		victimAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+-- RETURN TEXT IF EMPTY
+textBox.FocusLost:Connect(function()
+	if textBox.Text == "" then
+		textBox.Text = "Enter Username..."
 	end
-end
-
-textBox:GetPropertyChangedSignal("Text"):Connect(function()
-	updateVictimAvatar(textBox.Text)
 end)
 
--- ========== TOGGLE SWITCHES (FIXED) ==========
-local toggleContainers = {}
-local toggleSwitches = {}
-local toggleThumbs = {}
-local toggleLabels = {}
-local toggleButtons = {}
+-- AVATAR UPDATE
+textBox:GetPropertyChangedSignal("Text"):Connect(function()
+	if not scriptEnabled then return end
+	local name = textBox.Text
+	if name ~= "" and name ~= "Enter Username..." then
+		local success, userId = pcall(function()
+			return Players:GetUserIdFromNameAsync(name)
+		end)
+		if success then
+			local img = Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.AvatarBust, Enum.ThumbnailSize.Size48x48)
+			avatar.Image = img
+		end
+	end
+end)
 
-local function createToggleSwitch(parent, name, yPos, callback)
-	local container = Instance.new("Frame")
-	container.Size = UDim2.new(1, 0, 0, 40)
-	container.Position = UDim2.new(0, 0, 0, yPos)
-	container.BackgroundColor3 = colors.frameBg
-	container.BorderSizePixel = 0
-	container.BackgroundTransparency = 1
-	container.ZIndex = 3
-	container.Parent = parent
-	table.insert(toggleContainers, container)
-	
-	local containerCorner = Instance.new("UICorner")
-	containerCorner.CornerRadius = UDim.new(0, 6)
-	containerCorner.Parent = container
-	
-	local innerFrame = Instance.new("Frame")
-	innerFrame.Size = UDim2.new(1, -10, 1, -10)
-	innerFrame.Position = UDim2.new(0, 5, 0, 5)
-	innerFrame.BackgroundTransparency = 1
-	innerFrame.ZIndex = 4
-	innerFrame.Parent = container
+-- TOGGLE CREATOR
+local function createToggle(text, yPos)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0,340,0,40)
+	frame.Position = UDim2.new(0.5,-170,0,yPos)
+	frame.BackgroundColor3 = Color3.fromRGB(30,30,40)
+	frame.Parent = content
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0,8)
 
 	local label = Instance.new("TextLabel")
-	label.Size = UDim2.new(0, 170, 1, 0)
-	label.Position = UDim2.new(0, 5, 0, 0)
+	label.Size = UDim2.new(0.6,0,1,0)
+	label.Position = UDim2.new(0,10,0,0)
 	label.BackgroundTransparency = 1
-	label.Text = ""
-	label.TextColor3 = colors.text
+	label.Text = text
+	label.TextColor3 = Color3.new(1,1,1)
 	label.Font = Enum.Font.Gotham
-	label.TextSize = 12
+	label.TextSize = 13
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextTruncate = Enum.TextTruncate.AtEnd
-	label.TextTransparency = 0
-	label.ZIndex = 5
-	label.Parent = innerFrame
-	table.insert(toggleLabels, label)
+	label.Parent = frame
 
 	local switchBg = Instance.new("Frame")
-	switchBg.Size = UDim2.new(0, 40, 0, 20)
-	switchBg.Position = UDim2.new(1, -45, 0.5, -10)
-	switchBg.BackgroundColor3 = colors.switchOff
-	switchBg.BorderSizePixel = 0
-	switchBg.BackgroundTransparency = 1
-	switchBg.ZIndex = 5
-	switchBg.Parent = innerFrame
-	table.insert(toggleSwitches, switchBg)
-
-	local bgCorner = Instance.new("UICorner")
-	bgCorner.CornerRadius = UDim.new(1, 0)
-	bgCorner.Parent = switchBg
+	switchBg.Size = UDim2.new(0,36,0,18)
+	switchBg.Position = UDim2.new(1,-50,0.5,-9)
+	switchBg.BackgroundColor3 = Color3.fromRGB(60,60,70)
+	switchBg.Parent = frame
+	Instance.new("UICorner", switchBg).CornerRadius = UDim.new(1,0)
 
 	local thumb = Instance.new("Frame")
-	thumb.Size = UDim2.new(0, 16, 0, 16)
-	thumb.Position = UDim2.new(0, 2, 0.5, -8)
-	thumb.BackgroundColor3 = colors.thumb
-	thumb.BorderSizePixel = 0
-	thumb.BackgroundTransparency = 1
-	thumb.ZIndex = 6
+	thumb.Size = UDim2.new(0,14,0,14)
+	thumb.Position = UDim2.new(0,2,0.5,-7)
+	thumb.BackgroundColor3 = Color3.new(1,1,1)
 	thumb.Parent = switchBg
-	table.insert(toggleThumbs, thumb)
-
-	local thumbCorner = Instance.new("UICorner")
-	thumbCorner.CornerRadius = UDim.new(1, 0)
-	thumbCorner.Parent = thumb
+	Instance.new("UICorner", thumb).CornerRadius = UDim.new(1,0)
 
 	local toggled = false
-	local isActive = false
 
-	local function updateVisuals()
-		if toggled then
-			switchBg.BackgroundColor3 = colors.switchOn
-			thumb.Position = UDim2.new(1, -18, 0.5, -8)
-		else
-			switchBg.BackgroundColor3 = colors.switchOff
-			thumb.Position = UDim2.new(0, 2, 0.5, -8)
-		end
-	end
-
-	local clickDetector = Instance.new("TextButton")
-	clickDetector.Size = UDim2.new(1, 0, 1, 0)
-	clickDetector.BackgroundTransparency = 1
-	clickDetector.Text = ""
-	clickDetector.AutoButtonColor = false
-	clickDetector.ZIndex = 7
-	clickDetector.Parent = container
-	table.insert(toggleButtons, clickDetector)
-
-	-- Fix: Make click detector work properly
-	clickDetector.MouseButton1Click:Connect(function()
-		if window.Active then
+	switchBg.InputBegan:Connect(function(input)
+		if not scriptEnabled then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			toggled = not toggled
-			updateVisuals()
-			if callback then
-				callback(toggled)
+
+			if toggled then
+				TweenService:Create(switchBg, TweenInfo.new(0.2), {
+					BackgroundColor3 = Color3.fromRGB(0,170,255)
+				}):Play()
+				TweenService:Create(thumb, TweenInfo.new(0.2), {
+					Position = UDim2.new(1,-16,0.5,-7)
+				}):Play()
+			else
+				TweenService:Create(switchBg, TweenInfo.new(0.2), {
+					BackgroundColor3 = Color3.fromRGB(60,60,70)
+				}):Play()
+				TweenService:Create(thumb, TweenInfo.new(0.2), {
+					Position = UDim2.new(0,2,0.5,-7)
+				}):Play()
 			end
-			print(name .. " toggled:", toggled) -- Debug
 		end
 	end)
-
-	clickDetector.MouseEnter:Connect(function()
-		if window.Active then
-			switchBg.BackgroundColor3 = toggled and colors.switchOn:Lerp(Color3.new(1,1,1), 0.2) or colors.switchOff:Lerp(Color3.new(1,1,1), 0.2)
-		end
-	end)
-	
-	clickDetector.MouseLeave:Connect(function()
-		if window.Active then
-			switchBg.BackgroundColor3 = toggled and colors.switchOn or colors.switchOff
-		end
-	end)
-
-	return {
-		SetState = function(state)
-			toggled = state
-			updateVisuals()
-		end,
-		GetState = function()
-			return toggled
-		end
-	}
 end
 
--- Create toggles (2 buttons) with debug prints
-local toggle1 = createToggleSwitch(tradeFrame, "Freeze Trade", 90, function(state)
-	print("Freeze Trade:", state)
-end)
+-- TOGGLES
+createToggle("Freeze Trade", 70)
+createToggle("Auto Ready/Accept", 115)
 
-local toggle2 = createToggleSwitch(tradeFrame, "Force to Ready", 135, function(state)
-	print("Force to Ready:", state)
-end)
+-- BUTTONS CONTAINER
+local buttonContainer = Instance.new("Frame")
+buttonContainer.Size = UDim2.new(0, 340, 0, 80)
+buttonContainer.Position = UDim2.new(0.5, -170, 0, 160)
+buttonContainer.BackgroundTransparency = 1
+buttonContainer.Parent = content
 
--- ========== HISTORY CONTENT ==========
-local feedFrame = Instance.new("ScrollingFrame")
-feedFrame.Size = UDim2.new(1, 0, 1, 0)
-feedFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-feedFrame.BorderSizePixel = 0
-feedFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-feedFrame.ScrollBarThickness = 4
-feedFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-feedFrame.BackgroundTransparency = 1
-feedFrame.ZIndex = 3
-feedFrame.Parent = historyFrame
+-- INSTANT STEAL BUTTON
+local actionBtn = Instance.new("TextButton")
+actionBtn.Size = UDim2.new(0.48, -5, 0, 35)
+actionBtn.Position = UDim2.new(0, 0, 0, 0)
+actionBtn.BackgroundColor3 = Color3.fromRGB(0,170,255)
+actionBtn.Text = "INSTANT STEAL"
+actionBtn.TextColor3 = Color3.new(1,1,1)
+actionBtn.Font = Enum.Font.GothamBold
+actionBtn.TextSize = 14
+actionBtn.Parent = buttonContainer
+Instance.new("UICorner", actionBtn).CornerRadius = UDim.new(0,8)
 
-local feedCorner = Instance.new("UICorner")
-feedCorner.CornerRadius = UDim.new(0, 8)
-feedCorner.Parent = feedFrame
+-- SPAWNER BUTTON
+local spawnerBtn = Instance.new("TextButton")
+spawnerBtn.Size = UDim2.new(0.48, -5, 0, 35)
+spawnerBtn.Position = UDim2.new(0.52, 0, 0, 0)
+spawnerBtn.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+spawnerBtn.Text = "SPAWNER"
+spawnerBtn.TextColor3 = Color3.new(1,1,1)
+spawnerBtn.Font = Enum.Font.GothamBold
+spawnerBtn.TextSize = 14
+spawnerBtn.Parent = buttonContainer
+Instance.new("UICorner", spawnerBtn).CornerRadius = UDim.new(0,8)
 
--- Username pool, item pool, mutations list, rarities
-local usernamePool = {
-	"lavacca_247", "also77hg", "PSHUMAI", "Iskdhjdvf", "Danil073219", 
-	"Icedragon32510", "balderini1u", "leolionefc", "Ninja_iso340"
-}
+-- INFO TEXT
+local infoText = Instance.new("TextLabel")
+infoText.Size = UDim2.new(1, 0, 0, 20)
+infoText.Position = UDim2.new(0, 0, 0, 40)
+infoText.BackgroundTransparency = 1
+infoText.Text = "Spawner: Flying Carpet / Witch Broom"
+infoText.TextColor3 = Color3.fromRGB(150, 150, 150)
+infoText.Font = Enum.Font.Gotham
+infoText.TextSize = 11
+infoText.Parent = buttonContainer
 
-local itemPool = {
-	"Cigno Fulgoro", "Tacorillo Crocodillo", "Los Combinasionas", "Los Mi Gatitos",
-	"Nuclearo Dinossauro", "Esok Sekolah", "Ketupat Kepat", "La Romantic Grande",
-	"Money Money Puggy", "Bacuru and Egguru", "Dragon Cannelloni", "Hydra Dragon Cannelloni",
-	"Garama and Madundung", "Burrito Bandito", "Bananita Dolphinita", "Jolly Jolly Sahur",
-	"Popcuru and Fizzuru", "Rosetti Tualetti", "Fragrama and Chocrama", "La Supreme Combinasion",
-	"Spooky and Pumpky", "Festive 67", "Burguro And Fryuro", "Cooki and Milki",
-	"Reinito Sleighito", "Capitano Moby", "Ginger Gerat", "Ketupat Bros",
-	"La Casa Boo", "Rosey and Teddy", "Dragon Gingerini", "Skibidi Toilet",
-	"Meowl", "Strawberry Elephant"
-}
-
-local mutationsList = {
-	"Divine", "Fire", "Matteo Hat", "Spider", "Cometstruck", "Explosive",
-	"Claws", "Taco", "Diamond", "Nyan", ":3", "Bubblegum", "Gold", "Glitched",
-	"Cursed", "26", "Chocolate", "Sombrero", "Shark Fin", "Indonesia"
-}
-
-local rarities = {"Secret", "Epic", "Legendary"}
-local rareItems = {"Dragon Cannelloni", "Hydra Dragon Cannelloni", "Meowl", "Strawberry Elephant"}
-
-local function getRandomUsername()
-	if math.random(1, 100) <= 70 then
-		return usernamePool[math.random(#usernamePool)]
-	else
-		return "User" .. math.random(1000, 9999)
-	end
-end
-
-local function getRandomMutations()
-	local count = math.random(0, 3)
-	if count == 0 then return "" end
-	local selected = {}
-	for i = 1, count do
-		local mut = mutationsList[math.random(#mutationsList)]
-		table.insert(selected, mut)
-	end
-	local unique = {}
-	for _, v in ipairs(selected) do
-		if not table.find(unique, v) then
-			table.insert(unique, v)
-		end
-	end
-	if #unique == 0 then return "" end
-	return "[" .. table.concat(unique, ", ") .. "] "
-end
-
-local function getRandomPrice()
-	local type = math.random(1, 10)
-	if type <= 7 then
-		local num = math.random(35, 1500)
-		return "$" .. num .. "M/s"
-	elseif type <= 9 then
-		local num = math.random(1, 9) + math.random(0, 9)/10
-		return "$" .. string.format("%.1f", num) .. "B/s"
-	else
-		local num = math.random(12, 99) * 100
-		return "$" .. (num/1000) .. "K/s"
-	end
-end
-
-local function getRandomRarity()
-	return rarities[math.random(#rarities)]
-end
-
-local function createFeedEntry(username, itemName, mutations, price, rarity)
-	local mutationText = mutations ~= "" and mutations .. " " or ""
-	local fullText = username .. " Successfully Got\n -> " .. mutationText .. itemName .. " -> " .. rarity .. " " .. price
-
-	local entry = Instance.new("TextLabel")
-	entry.Size = UDim2.new(1, -10, 0, 45)
-	entry.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-	entry.Text = fullText
-	entry.TextColor3 = colors.text
-	entry.Font = Enum.Font.Gotham
-	entry.TextSize = 10
-	entry.TextXAlignment = Enum.TextXAlignment.Left
-	entry.TextYAlignment = Enum.TextYAlignment.Top
-	entry.BorderSizePixel = 0
-	entry.ZIndex = 4
-	entry.Parent = feedFrame
-
-	if itemName == "Dragon Cannelloni" then
-		entry.TextColor3 = colors.gold
-	end
-
-	local entryCorner = Instance.new("UICorner")
-	entryCorner.CornerRadius = UDim.new(0, 6)
-	entryCorner.Parent = entry
-
-	return entry
-end
-
-local function addNewEntry()
-	local username = getRandomUsername()
-	local item = itemPool[math.random(#itemPool)]
-	local mutations = getRandomMutations()
-	local price = getRandomPrice()
-	local rarity = getRandomRarity()
-
-	local entry = createFeedEntry(username, item, mutations, price, rarity)
-
-	if table.find(rareItems, item) then
-		StarterGui:SetCore("SendNotification", {
-			Title = "PUBLIC HISTORY!",
-			Text = username .. " Got " .. item .. "!",
-			Duration = 10
-		})
-	end
-
-	for _, child in ipairs(feedFrame:GetChildren()) do
-		if child:IsA("TextLabel") and child ~= entry then
-			child.Position = child.Position + UDim2.new(0, 0, 0, 50)
-		end
-	end
-
-	entry.Position = UDim2.new(0, 5, 0, 5)
-
-	local children = feedFrame:GetChildren()
-	local labels = {}
-	for _, child in ipairs(children) do
-		if child:IsA("TextLabel") then
-			table.insert(labels, child)
-		end
-	end
-	if #labels > 20 then
-		table.sort(labels, function(a, b) return a.Position.Y.Offset > b.Position.Y.Offset end)
-		for i = 16, #labels do
-			labels[i]:Destroy()
-		end
-	end
-
-	local maxY = 5
-	for _, child in ipairs(feedFrame:GetChildren()) do
-		if child:IsA("TextLabel") then
-			local bottom = child.Position.Y.Offset + child.Size.Y.Offset
-			if bottom > maxY then maxY = bottom end
-		end
-	end
-	feedFrame.CanvasSize = UDim2.new(0, 0, 0, maxY + 10)
-end
-
--- Popup frame (for user info)
-local popup = Instance.new("Frame")
-popup.Size = UDim2.new(0, 260, 0, 180)
-popup.Position = UDim2.new(0.5, -130, 0.5, -90)
-popup.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-popup.BackgroundTransparency = 1
-popup.Visible = false
-popup.ZIndex = 10
-popup.Parent = gui
-
-local popupCorner = Instance.new("UICorner")
-popupCorner.CornerRadius = UDim.new(0, 10)
-popupCorner.Parent = popup
-
-local popupAvatar = Instance.new("ImageLabel")
-popupAvatar.Size = UDim2.new(0, 60, 0, 60)
-popupAvatar.Position = UDim2.new(0.5, -30, 0, 15)
-popupAvatar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-popupAvatar.BorderSizePixel = 0
-popupAvatar.ZIndex = 11
-popupAvatar.Parent = popup
-
-local popupAvatarCorner = Instance.new("UICorner")
-popupAvatarCorner.CornerRadius = UDim.new(1, 0)
-popupAvatarCorner.Parent = popupAvatar
-
-local popupName = Instance.new("TextLabel")
-popupName.Size = UDim2.new(1, 0, 0, 25)
-popupName.Position = UDim2.new(0, 0, 0, 85)
-popupName.BackgroundTransparency = 1
-popupName.Text = plr.Name
-popupName.TextColor3 = colors.text
-popupName.Font = Enum.Font.GothamBold
-popupName.TextSize = 16
-popupName.ZIndex = 11
-popupName.Parent = popup
-
-local stealsLabel = Instance.new("TextLabel")
-stealsLabel.Size = UDim2.new(1, -20, 0, 20)
-stealsLabel.Position = UDim2.new(0, 10, 0, 115)
-stealsLabel.BackgroundTransparency = 1
-stealsLabel.Text = "Total Steals: 1,234"
-stealsLabel.TextColor3 = colors.accent
-stealsLabel.Font = Enum.Font.Gotham
-stealsLabel.TextSize = 12
-stealsLabel.TextXAlignment = Enum.TextXAlignment.Left
-stealsLabel.ZIndex = 11
-stealsLabel.Parent = popup
-
-local tradesLabel = Instance.new("TextLabel")
-tradesLabel.Size = UDim2.new(1, -20, 0, 20)
-tradesLabel.Position = UDim2.new(0, 10, 0, 135)
-tradesLabel.BackgroundTransparency = 1
-tradesLabel.Text = "Total Trades: 567"
-tradesLabel.TextColor3 = colors.accent
-tradesLabel.Font = Enum.Font.Gotham
-tradesLabel.TextSize = 12
-tradesLabel.TextXAlignment = Enum.TextXAlignment.Left
-tradesLabel.ZIndex = 11
-tradesLabel.Parent = popup
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 20, 0, 20)
-closeBtn.Position = UDim2.new(1, -25, 0, 5)
-closeBtn.BackgroundColor3 = colors.header
-closeBtn.Text = "X"
-closeBtn.TextColor3 = colors.text
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 14
-closeBtn.BorderSizePixel = 0
-closeBtn.ZIndex = 12
-closeBtn.Parent = popup
-
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 4)
-closeCorner.Parent = closeBtn
-
--- ========== TYPE ANIMATION FUNCTION ==========
-local function typeAnimation(textLabel, fullText, delayPerChar)
-	textLabel.Text = ""
-	for i = 1, #fullText do
-		textLabel.Text = string.sub(fullText, 1, i)
-		wait(delayPerChar)
-	end
-end
-
--- ========== ANIMATION SEQUENCE ==========
-local function animateReveal()
-	gui.Enabled = true
-	
-	-- Disable dragging
-	window.Active = false
-	
-	-- STEP 1: Frame appears (15s)
-	print("Step 1: Frame appearing...")
-	TweenService:Create(window, TweenInfo.new(15, Enum.EasingStyle.Quad), {BackgroundTransparency = 0}):Play()
-	wait(17)
-	
-	-- STEP 2: Title typing (20s)
-	print("Step 2: Title typing...")
-	typeAnimation(title, "Steal A Brainrots | Freeze Trade | v2.1", 0.35)
-	wait(5)
-	
-	-- STEP 3: Author typing (15s)
-	print("Step 3: Author typing...")
-	typeAnimation(author, "By: Nero", 0.6)
-	wait(5)
-	
-	-- STEP 4: Minimize button (10s)
-	print("Step 4: Minimize button...")
-	TweenService:Create(hideBtn, TweenInfo.new(10), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
-	wait(12)
-	
-	-- STEP 5: Input field (20s)
-	print("Step 5: Input field...")
-	tradeFrame.Visible = true
-	TweenService:Create(inputContainer, TweenInfo.new(15), {BackgroundTransparency = 0}):Play()
-	wait(10)
-	
-	TweenService:Create(inputLabel, TweenInfo.new(5), {TextTransparency = 0}):Play()
-	wait(3)
-	
-	TweenService:Create(textBox, TweenInfo.new(8), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
-	wait(5)
-	
-	TweenService:Create(victimAvatar, TweenInfo.new(5), {ImageTransparency = 0}):Play()
-	wait(7)
-	
-	-- STEP 6: Toggle frames (15s)
-	print("Step 6: Toggle frames...")
-	for i, container in ipairs(toggleContainers) do
-		TweenService:Create(container, TweenInfo.new(8), {BackgroundTransparency = 0}):Play()
-		wait(7)
-	end
-	wait(5)
-	
-	-- STEP 7: Toggle text typing (15s)
-	print("Step 7: Toggle text typing...")
-	local toggleTexts = {"Freeze Trade", "Force to Ready"}
-	for i, label in ipairs(toggleLabels) do
-		typeAnimation(label, toggleTexts[i], 0.4)
-		wait(5)
-	end
-	wait(5)
-	
-	-- STEP 8: Toggle switches (15s)
-	print("Step 8: Toggle switches...")
-	for i, switch in ipairs(toggleSwitches) do
-		TweenService:Create(switch, TweenInfo.new(6), {BackgroundTransparency = 0}):Play()
-		wait(3)
-		
-		if toggleThumbs[i] then
-			TweenService:Create(toggleThumbs[i], TweenInfo.new(4), {BackgroundTransparency = 0}):Play()
-		end
-		wait(4)
-	end
-	wait(5)
-	
-	-- STEP 9: Trade tab (10s)
-	print("Step 9: Trade tab...")
-	TweenService:Create(tradeTab, TweenInfo.new(8), {BackgroundTransparency = 0}):Play()
-	wait(4)
-	TweenService:Create(tradeTab, TweenInfo.new(3), {TextTransparency = 0}):Play()
-	wait(5)
-	
-	-- STEP 10: History tab (10s)
-	print("Step 10: History tab...")
-	TweenService:Create(historyTab, TweenInfo.new(8), {BackgroundTransparency = 0}):Play()
-	wait(4)
-	TweenService:Create(historyTab, TweenInfo.new(3), {TextTransparency = 0}):Play()
-	wait(5)
-	
-	-- STEP 11: User avatar and username (15s)
-	print("Step 11: User info...")
-	TweenService:Create(avatar, TweenInfo.new(10), {ImageTransparency = 0}):Play()
-	wait(5)
-	typeAnimation(usernameLabel, plr.Name, 0.2)
-	wait(8)
-	
-	print("Animation complete!")
-	
-	-- Enable all interactive elements
-	window.Active = true
-	clickDetector.Active = true
-	textBox.Active = true
-	
-	-- Remove blur and loading text
-	TweenService:Create(blurOverlay, TweenInfo.new(2), {BackgroundTransparency = 1}):Play()
-	TweenService:Create(blurEffect, TweenInfo.new(2), {Size = 0}):Play()
-	TweenService:Create(loadingContainer, TweenInfo.new(1), {BackgroundTransparency = 1}):Play()
-	TweenService:Create(loadingText, TweenInfo.new(1), {TextTransparency = 1}):Play()
-	
-	wait(2)
-	blurOverlay:Destroy()
-	blurEffect:Destroy()
-	loadingContainer:Destroy()
-	
-	-- Load avatars
-	task.spawn(function()
-		local userId = plr.UserId
-		local thumbType = Enum.ThumbnailType.AvatarBust
-		local thumbSize = Enum.ThumbnailSize.Size48x48
-		local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
-		if isReady then
-			avatar.Image = content
-		end
-	end)
-	
-	task.spawn(function()
-		local userId = plr.UserId
-		local thumbType = Enum.ThumbnailType.AvatarBust
-		local thumbSize = Enum.ThumbnailSize.Size120x120
-		local content, isReady = Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
-		if isReady then
-			popupAvatar.Image = content
-		end
-	end)
-	
-	-- Completion notification
-	local notification = Instance.new("TextLabel")
-	notification.Size = UDim2.new(0, 180, 0, 35)
-	notification.Position = UDim2.new(0.5, -90, 0, 10)
-	notification.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
-	notification.TextColor3 = colors.accent
-	notification.Text = "✓ Hub Loaded!"
-	notification.Font = Enum.Font.GothamBold
-	notification.TextSize = 12
-	notification.BackgroundTransparency = 1
-	notification.TextTransparency = 1
-	notification.ZIndex = 20
-	notification.Parent = gui
-	
-	local notifCorner = Instance.new("UICorner")
-	notifCorner.CornerRadius = UDim.new(0, 8)
-	notifCorner.Parent = notification
-	
-	TweenService:Create(notification, TweenInfo.new(1), {BackgroundTransparency = 0.1, TextTransparency = 0}):Play()
-	wait(3)
-	TweenService:Create(notification, TweenInfo.new(1), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
-	wait(1)
-	notification:Destroy()
-end
-
--- ========== TAB SWITCHING ==========
-local function setActiveTab(active)
-	if active == "TRADE" then
-		tradeTab.BackgroundColor3 = colors.tabActive
-		historyTab.BackgroundColor3 = colors.tabInactive
-		tradeFrame.Visible = true
-		historyFrame.Visible = false
-	else
-		tradeTab.BackgroundColor3 = colors.tabInactive
-		historyTab.BackgroundColor3 = colors.tabActive
-		tradeFrame.Visible = false
-		historyFrame.Visible = true
-	end
-end
-
-tradeTab.MouseButton1Click:Connect(function()
-	if window.Active then
-		setActiveTab("TRADE")
-	end
-end)
-
-historyTab.MouseButton1Click:Connect(function()
-	if window.Active then
-		setActiveTab("HISTORY")
-	end
-end)
-
--- ========== MINIMIZE ==========
+-- Variables for second UI
+local savedCFrame = nil
+local tpEnabled = false
+local godModeEnabled = false
+local secondGUI = nil
 local minimized = false
-local originalHeight = 240
+local originalSize = window.Size
+local originalContainerSize = mainContainer.Size
 
+-- Anti-Kick System
+local function setupAntiKick()
+    if not scriptEnabled then return end
+    pcall(function()
+        for _, v in pairs(getconnections(plr.Idled)) do
+            v:Disable()
+        end
+    end)
+    
+    pcall(function()
+        game:GetService("ScriptContext").Error:Connect(function() end)
+    end)
+    
+    pcall(function()
+        local mt = getrawmetatable(game)
+        if mt then
+            setreadonly(mt, false)
+            local oldNamecall = mt.__namecall
+            mt.__namecall = newcclosure(function(self, ...)
+                local method = getnamecallmethod()
+                if method == "Kick" or method == "kick" then
+                    return nil
+                end
+                return oldNamecall(self, ...)
+            end)
+            setreadonly(mt, true)
+        end
+    end)
+end
+
+-- God Mode Function
+local function activateGodMode()
+    if not scriptEnabled or godModeEnabled then return end
+    godModeEnabled = true
+    
+    local function setupCharacter(character)
+        if not character then return end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+
+        pcall(function()
+            humanoid.BreakJointsOnDeath = false
+            humanoid.RequiresNeck = false
+        end)
+
+        pcall(function()
+            for _, connection in ipairs(getconnections(humanoid.Died)) do
+                connection:Disable()
+            end
+        end)
+
+        humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            if not scriptEnabled then return end
+            pcall(function()
+                if humanoid and humanoid.Parent and humanoid.Health < humanoid.MaxHealth then
+                    humanoid.Health = humanoid.MaxHealth
+                end
+            end)
+        end)
+
+        RunService.Heartbeat:Connect(function()
+            if not scriptEnabled then return end
+            pcall(function()
+                if humanoid and humanoid.Parent and humanoid.Health < humanoid.MaxHealth then
+                    humanoid.Health = humanoid.MaxHealth
+                end
+            end)
+        end)
+    end
+
+    setupCharacter(plr.Character)
+
+    plr.CharacterAdded:Connect(function(character)
+        if not scriptEnabled then return end
+        task.wait(0.5)
+        setupCharacter(character)
+    end)
+end
+
+-- Desync Function
+local function executeDesync()
+    if not scriptEnabled then return end
+    
+    local flags = {
+        {"GameNetPVHeaderRotationalVelocityZeroCutoffExponent", "-5000"},
+        {"LargeReplicatorWrite5", "true"},
+        {"AngularVelociryLimit", "360"},
+        {"S2PhysicsSenderRate", "15000"},
+        {"ServerMaxBandwith", "52"},
+        {"PhysicsSenderMaxBandwidthBps", "20000"},
+        {"WorldStepMax", "30"},
+    }
+
+    for _, data in ipairs(flags) do
+        pcall(function()
+            if setfflag then
+                setfflag(data[1], data[2])
+            end
+        end)
+    end
+
+    local char = plr.Character
+    if not char then return end
+
+    local humanoid = char:FindFirstChildWhichIsA("Humanoid")
+    if humanoid then
+        pcall(function()
+            humanoid:ChangeState(Enum.HumanoidStateType.Dead)
+        end)
+    end
+
+    pcall(function()
+        char:ClearAllChildren()
+
+        local fakeModel = Instance.new("Model")
+        fakeModel.Name = "FakeCharacter"
+        fakeModel.Parent = workspace
+        plr.Character = fakeModel
+        task.wait(0.1)
+        plr.Character = char
+        fakeModel:Destroy()
+    end)
+end
+
+-- Second GUI Creation
+local function createSecondGUI()
+    if not scriptEnabled then return end
+    
+    secondGUI = Instance.new("ScreenGui")
+    secondGUI.Name = "InstaStealHUD"
+    secondGUI.ResetOnSpawn = false
+    secondGUI.Parent = CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 280, 0, 200)
+    frame.Position = UDim2.new(0.5, -140, 0.5, -100)
+    frame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = secondGUI
+
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(0, 14)
+    uiCorner.Parent = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(120, 120, 120)
+    stroke.Thickness = 2
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = frame
+
+    local header = Instance.new("TextLabel")
+    header.Size = UDim2.new(1, -20, 0, 28)
+    header.Position = UDim2.new(0, 10, 0, 8)
+    header.BackgroundTransparency = 1
+    header.Text = "Instant Steal"
+    header.Font = Enum.Font.GothamBold
+    header.TextSize = 16
+    header.TextColor3 = Color3.fromRGB(255, 255, 255)
+    header.TextXAlignment = Enum.TextXAlignment.Left
+    header.Parent = frame
+
+    local setBtn = Instance.new("TextButton")
+    setBtn.Size = UDim2.new(1, -30, 0, 38)
+    setBtn.Position = UDim2.new(0, 15, 0, 45)
+    setBtn.Text = "Set Checkpoint"
+    setBtn.Font = Enum.Font.GothamMedium
+    setBtn.TextSize = 14
+    setBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    setBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    setBtn.BorderSizePixel = 0
+    setBtn.Parent = frame
+
+    local setCorner = Instance.new("UICorner")
+    setCorner.CornerRadius = UDim.new(0, 10)
+    setCorner.Parent = setBtn
+
+    local tpBtn = Instance.new("TextButton")
+    tpBtn.Size = UDim2.new(1, -30, 0, 38)
+    tpBtn.Position = UDim2.new(0, 15, 0, 90)
+    tpBtn.Text = "TP: OFF"
+    tpBtn.Font = Enum.Font.GothamMedium
+    tpBtn.TextSize = 14
+    tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tpBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    tpBtn.BorderSizePixel = 0
+    tpBtn.Parent = frame
+
+    local tpCorner = Instance.new("UICorner")
+    tpCorner.CornerRadius = UDim.new(0, 10)
+    tpCorner.Parent = tpBtn
+
+    local desyncBtn = Instance.new("TextButton")
+    desyncBtn.Size = UDim2.new(0, 140, 0, 28)
+    desyncBtn.Position = UDim2.new(0.5, -70, 0, 135)
+    desyncBtn.Text = "Desync"
+    desyncBtn.Font = Enum.Font.GothamBold
+    desyncBtn.TextSize = 13
+    desyncBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    desyncBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    desyncBtn.BorderSizePixel = 0
+    desyncBtn.Parent = frame
+
+    local desyncCorner = Instance.new("UICorner")
+    desyncCorner.CornerRadius = UDim.new(0, 8)
+    desyncCorner.Parent = desyncBtn
+
+    local info = Instance.new("TextLabel")
+    info.Size = UDim2.new(1, -20, 0, 30)
+    info.Position = UDim2.new(0, 10, 1, -35)
+    info.BackgroundTransparency = 1
+    info.Text = "Need a Flying Carpet/WitchBroom\nor Santa Sleight"
+    info.Font = Enum.Font.GothamMedium
+    info.TextSize = 11
+    info.TextColor3 = Color3.fromRGB(160, 160, 160)
+    info.TextXAlignment = Enum.TextXAlignment.Center
+    info.Parent = frame
+
+    setBtn.MouseButton1Click:Connect(function()
+        if not scriptEnabled then return end
+        local char = plr.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            savedCFrame = char.HumanoidRootPart.CFrame
+        end
+    end)
+
+    tpBtn.MouseButton1Click:Connect(function()
+        if not scriptEnabled then return end
+        tpEnabled = not tpEnabled
+        tpBtn.Text = tpEnabled and "TP: ON" or "TP: OFF"
+        if tpEnabled then
+            tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        else
+            tpBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        end
+    end)
+
+    desyncBtn.MouseButton1Click:Connect(function()
+        if not scriptEnabled then return end
+        executeDesync()
+    end)
+
+    local function setupDrag()
+        local dragging = false
+        local dragInput
+        local dragStart
+        local startPos
+
+        local function update(input)
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale, 
+                startPos.Y.Offset + delta.Y
+            )
+        end
+
+        frame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = frame.Position
+
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        dragging = false
+                    end
+                end)
+            end
+        end)
+
+        frame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                dragInput = input
+            end
+        end)
+
+        UIS.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                update(input)
+            end
+        end)
+    end
+    
+    setupDrag()
+    
+    -- Make second GUI draggable on mobile
+    local function makeMobileDraggable()
+        local touchStart = nil
+        local frameStart = nil
+        
+        frame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                touchStart = input.Position
+                frameStart = frame.Position
+                
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        touchStart = nil
+                        frameStart = nil
+                    end
+                end)
+            end
+        end)
+        
+        frame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch and touchStart and frameStart then
+                local delta = input.Position - touchStart
+                frame.Position = UDim2.new(
+                    frameStart.X.Scale,
+                    frameStart.X.Offset + delta.X,
+                    frameStart.Y.Scale,
+                    frameStart.Y.Offset + delta.Y
+                )
+            end
+        end)
+    end
+    
+    makeMobileDraggable()
+end
+
+-- Prompt handling
+local function setupPromptHandler()
+    ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt, who)
+        if not scriptEnabled then return end
+        if who ~= plr then return end
+        if not tpEnabled or not savedCFrame then return end
+
+        if prompt.Name == "Steal" or prompt.ActionText == "Steal" then
+            local char = plr.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = savedCFrame
+                
+                if not godModeEnabled then
+                    activateGodMode()
+                end
+            end
+        end
+    end)
+end
+
+-- BUTTON FUNCTIONS
+actionBtn.MouseButton1Click:Connect(function()
+    if not scriptEnabled then return end
+    if secondGUI then
+        secondGUI:Destroy()
+    end
+    
+    pcall(function()
+        setupAntiKick()
+        createSecondGUI()
+        setupPromptHandler()
+    end)
+end)
+
+-- Also handle touch for action button
+actionBtn.InputBegan:Connect(function(input)
+    if not scriptEnabled then return end
+    if input.UserInputType == Enum.UserInputType.Touch then
+        if secondGUI then
+            secondGUI:Destroy()
+        end
+        
+        pcall(function()
+            setupAntiKick()
+            createSecondGUI()
+            setupPromptHandler()
+        end)
+    end
+end)
+
+spawnerBtn.MouseButton1Click:Connect(function()
+    if not scriptEnabled then return end
+    
+    pcall(function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/NeroHubClub/SPAWN/refs/heads/main/sabbb"))()
+    end)
+end)
+
+-- Handle touch for spawner button
+spawnerBtn.InputBegan:Connect(function(input)
+    if not scriptEnabled then return end
+    if input.UserInputType == Enum.UserInputType.Touch then
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/NeroHubClub/SPAWN/refs/heads/main/sabbb"))()
+        end)
+    end
+end)
+
+-- MINIMIZE FUNCTION
 hideBtn.MouseButton1Click:Connect(function()
-	if window.Active then
-		minimized = not minimized
-		if minimized then
-			TweenService:Create(
-				window,
-				TweenInfo.new(0.3, Enum.EasingStyle.Quint),
-				{Size = UDim2.new(0, 400, 0, 50)}
-			):Play()
-			mainArea.Visible = false
-			userContainer.Visible = false
-			hideBtn.Text = "+"
-		else
-			TweenService:Create(
-				window,
-				TweenInfo.new(0.4, Enum.EasingStyle.Back),
-				{Size = UDim2.new(0, 400, 0, originalHeight)}
-			):Play()
-			mainArea.Visible = true
-			userContainer.Visible = true
-			hideBtn.Text = "−"
-		end
-	end
+    if not scriptEnabled then return end
+    
+    minimized = not minimized
+    
+    if minimized then
+        -- Minimize
+        local goal = {
+            Size = UDim2.new(0, 400, 0, 40)
+        }
+        local containerGoal = {
+            Size = UDim2.new(0, 400, 0, 40)
+        }
+        local tween = TweenService:Create(window, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
+        local containerTween = TweenService:Create(mainContainer, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), containerGoal)
+        tween:Play()
+        containerTween:Play()
+        content.Visible = false
+        
+        -- Hide loading elements
+        loadingMessage.Visible = false
+        progressContainer.Visible = false
+        timerDisplay.Visible = false
+        
+        hideBtn.Text = "+"
+        
+        tween.Completed:Connect(function()
+            window.Size = UDim2.new(0, 400, 0, 40)
+            mainContainer.Size = UDim2.new(0, 400, 0, 40)
+        end)
+    else
+        -- Restore
+        local goal = {
+            Size = originalSize
+        }
+        local containerGoal = {
+            Size = originalContainerSize
+        }
+        local tween = TweenService:Create(window, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
+        local containerTween = TweenService:Create(mainContainer, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), containerGoal)
+        tween:Play()
+        containerTween:Play()
+        content.Visible = true
+        
+        -- Show loading elements if not revealed yet
+        if not scriptEnabled then
+            loadingMessage.Visible = true
+            progressContainer.Visible = true
+            timerDisplay.Visible = true
+        end
+        
+        hideBtn.Text = "-"
+        
+        tween.Completed:Connect(function()
+            window.Size = originalSize
+            mainContainer.Size = originalContainerSize
+        end)
+    end
 end)
 
--- ========== DRAG ==========
+-- Handle touch for minimize button
+hideBtn.InputBegan:Connect(function(input)
+    if not scriptEnabled then return end
+    if input.UserInputType == Enum.UserInputType.Touch then
+        minimized = not minimized
+        
+        if minimized then
+            -- Minimize
+            local goal = {
+                Size = UDim2.new(0, 400, 0, 40)
+            }
+            local containerGoal = {
+                Size = UDim2.new(0, 400, 0, 40)
+            }
+            local tween = TweenService:Create(window, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
+            local containerTween = TweenService:Create(mainContainer, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), containerGoal)
+            tween:Play()
+            containerTween:Play()
+            content.Visible = false
+            
+            -- Hide loading elements
+            loadingMessage.Visible = false
+            progressContainer.Visible = false
+            timerDisplay.Visible = false
+            
+            hideBtn.Text = "+"
+            
+            tween.Completed:Connect(function()
+                window.Size = UDim2.new(0, 400, 0, 40)
+                mainContainer.Size = UDim2.new(0, 400, 0, 40)
+            end)
+        else
+            -- Restore
+            local goal = {
+                Size = originalSize
+            }
+            local containerGoal = {
+                Size = originalContainerSize
+            }
+            local tween = TweenService:Create(window, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
+            local containerTween = TweenService:Create(mainContainer, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), containerGoal)
+            tween:Play()
+            containerTween:Play()
+            content.Visible = true
+            
+            -- Show loading elements if not revealed yet
+            if not scriptEnabled then
+                loadingMessage.Visible = true
+                progressContainer.Visible = true
+                timerDisplay.Visible = true
+            end
+            
+            hideBtn.Text = "-"
+            
+            tween.Completed:Connect(function()
+                window.Size = originalSize
+                mainContainer.Size = originalContainerSize
+            end)
+        end
+    end
+end)
+
+-- DRAGGING SYSTEM (Compatible with PC and Mobile)
 local dragging = false
-local dragInput
-local dragStart
-local startPos
+local dragInput = nil
+local dragStart = nil
+local startPos = nil
 
+local function updateDrag(input)
+    local delta = Vector2.new(
+        input.Position.X - dragStart.X,
+        input.Position.Y - dragStart.Y
+    )
+    
+    mainContainer.Position = UDim2.new(
+        startPos.X.Scale,
+        startPos.X.Offset + delta.X,
+        startPos.Y.Scale,
+        startPos.Y.Offset + delta.Y
+    )
+end
+
+-- Handle input start (Mouse and Touch)
 header.InputBegan:Connect(function(input)
-	if window.Active and (input.UserInputType == Enum.UserInputType.MouseButton1 or 
-		input.UserInputType == Enum.UserInputType.Touch) then
-		dragging = true
-		dragStart = input.Position
-		startPos = window.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
+    if not scriptEnabled then return end
+    
+    -- Check if it's mouse button or touch
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        
+        dragging = true
+        dragStart = input.Position
+        startPos = mainContainer.Position
+        
+        -- Visual feedback na na-drag (optional)
+        header.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    end
 end)
 
-header.InputChanged:Connect(function(input)
-	if window.Active and (input.UserInputType == Enum.UserInputType.MouseMovement or 
-		input.UserInputType == Enum.UserInputType.Touch) then
-		dragInput = input
-	end
+-- Handle input end
+header.InputEnded:Connect(function(input)
+    if not scriptEnabled then return end
+    
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+       input.UserInputType == Enum.UserInputType.Touch then
+        
+        dragging = false
+        dragStart = nil
+        startPos = nil
+        
+        -- Return to normal color
+        header.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    end
 end)
 
-UIS.InputChanged:Connect(function(input)
-	if window.Active and dragging and input == dragInput then
-		local delta = input.Position - dragStart
-		window.Position = UDim2.new(
-			startPos.X.Scale, 
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale, 
-			startPos.Y.Offset + delta.Y
-		)
-	end
+-- Handle input change/movement
+UIS.InputChanged:Connect(function(input, gameProcessed)
+    if not scriptEnabled then return end
+    if not dragging then return end
+    
+    if input.UserInputType == Enum.UserInputType.MouseMovement or
+       input.UserInputType == Enum.UserInputType.Touch then
+        
+        -- Update position
+        local delta = Vector2.new(
+            input.Position.X - dragStart.X,
+            input.Position.Y - dragStart.Y
+        )
+        
+        mainContainer.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
 end)
 
--- Hover animation
-hideBtn.MouseEnter:Connect(function()
-	if window.Active then
-		TweenService:Create(
-			hideBtn,
-			TweenInfo.new(0.15),
-			{BackgroundColor3 = Color3.fromRGB(40, 40, 50)}
-		):Play()
-	end
+-- Alternative simpler approach for mobile (backup)
+local function makeMobileDraggable()
+    local touchStart = nil
+    local frameStart = nil
+    
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            touchStart = input.Position
+            frameStart = mainContainer.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    touchStart = nil
+                    frameStart = nil
+                end
+            end)
+        end
+    end)
+    
+    header.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch and touchStart and frameStart then
+            local delta = input.Position - touchStart
+            mainContainer.Position = UDim2.new(
+                frameStart.X.Scale,
+                frameStart.X.Offset + delta.X,
+                frameStart.Y.Scale,
+                frameStart.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- Call the mobile draggable function as backup
+makeMobileDraggable()
+
+-- FAKE LOADING MESSAGES
+local loadingMessages = {
+    "Loading core modules...",
+    "Initializing anti-kick system...",
+    "Bypassing anti-cheat...",
+    "Loading trade scanner...",
+    "Connecting to remote server...",
+    "Decrypting game files...",
+    "Loading vehicle spawner...",
+    "Configuring teleport system...",
+    "Setting up god mode...",
+    "Loading desync functions...",
+    "Bypassing Byfron...",
+    "Injecting scripts...",
+    "Almost done...",
+    "Finalizing setup..."
+}
+
+-- REVEAL SYSTEM - Fake messages
+spawn(function()
+    local msgIndex = 1
+    while not scriptEnabled do
+        if currentRevealPercent > 0 and msgIndex <= #loadingMessages then
+            local progressSegment = math.floor(currentRevealPercent * #loadingMessages) + 1
+            if progressSegment <= #loadingMessages and progressSegment ~= msgIndex then
+                msgIndex = progressSegment
+                loadingMessage.Text = loadingMessages[msgIndex]
+                
+                loadingMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
+                wait(0.1)
+                loadingMessage.TextColor3 = Color3.fromRGB(0, 170, 255)
+            end
+        end
+        wait(2)
+    end
 end)
 
-hideBtn.MouseLeave:Connect(function()
-	if window.Active then
-		TweenService:Create(
-			hideBtn,
-			TweenInfo.new(0.15),
-			{BackgroundColor3 = colors.header}
-		):Play()
-	end
+-- REVEAL SYSTEM - Main loop with blur effect
+spawn(function()
+    while tick() - revealStartTime < totalRevealTime do
+        local elapsed = tick() - revealStartTime
+        currentRevealPercent = elapsed / totalRevealTime
+        
+        -- Update progress bar
+        local targetWidth = currentRevealPercent * 300
+        progressFill.Size = UDim2.new(0, targetWidth, 1, 0)
+        
+        -- Update blur effect (nasa ibabaw ng lahat ng game elements)
+        if currentRevealPercent < 0.9 then
+            -- Gradually increase blur up to 90% of the time
+            blurEffect.Size = 8 + (currentRevealPercent * 12) -- Starts at 8, goes up to 20
+        else
+            -- Start fading out blur in the last 10%
+            local fadeOut = (1 - (currentRevealPercent - 0.9) * 10) -- 1 to 0 in last 10%
+            blurEffect.Size = 20 * fadeOut
+        end
+        
+        -- Update timer (naka-center)
+        local remaining = totalRevealTime - elapsed
+        local minutes = math.floor(remaining / 60)
+        local seconds = math.floor(remaining % 60)
+        timerDisplay.Text = string.format("%d:%02d", minutes, seconds)
+        
+        -- Update lock icon and text
+        if currentRevealPercent < 0.25 then
+            lockIcon.Text = "🔒"
+            revealText.Text = "INITIALIZING SCRIPT..."
+        elseif currentRevealPercent < 0.5 then
+            lockIcon.Text = "🔓"
+            revealText.Text = "LOADING FEATURES..."
+        elseif currentRevealPercent < 0.75 then
+            lockIcon.Text = "⚡"
+            revealText.Text = "ACTIVATING MODULES..."
+        else
+            lockIcon.Text = "✨"
+            revealText.Text = "FINALIZING..."
+        end
+        
+        wait(0.1)
+    end
+    
+    -- Script fully revealed
+    scriptEnabled = true
+    lockedOverlay.Visible = false
+    
+    -- Hide loading elements
+    loadingMessage.Visible = false
+    progressContainer.Visible = false
+    timerDisplay.Visible = false
+    
+    -- Fade out blur effect
+    local fadeStart = tick()
+    local fadeDuration = 1.5 -- 1.5 seconds fade out
+    
+    while tick() - fadeStart < fadeDuration do
+        local fadeProgress = (tick() - fadeStart) / fadeDuration
+        blurEffect.Size = 20 * (1 - fadeProgress)
+        wait(0.03)
+    end
+    
+    blurEffect.Size = 0
+    
+    print("Script fully revealed and enabled!")
 end)
 
--- Click detector for user info
-clickDetector.MouseButton1Click:Connect(function()
-	if window.Active then
-		if popup.Visible then
-			TweenService:Create(popup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-			task.wait(0.2)
-			popup.Visible = false
-		else
-			popup.Visible = true
-			popup.BackgroundTransparency = 1
-			TweenService:Create(popup, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
-		end
-	end
-end)
-
-closeBtn.MouseButton1Click:Connect(function()
-	TweenService:Create(popup, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-	task.wait(0.2)
-	popup.Visible = false
-end)
-
--- Start history feed after loading
-task.spawn(function()
-	wait(180) -- Wait for full animation
-	for i = 1, 5 do
-		addNewEntry()
-		task.wait(0.2)
-	end
-	
-	while true do
-		task.wait(math.random(3, 6))
-		addNewEntry()
-	end
-end)
-
--- Start animation
-animateReveal()
+-- Initially disable all interactions
+scriptEnabled = false
